@@ -1,2 +1,2 @@
-# CaptainGrants_Bot
-telegram bot for aggregating contests and grants for NGOs and civic activists from the aggregator site Captain Grants cptgrants.org
+# Пример
+Рабочий бот: [@Digitalyouth_ITbound_Bot](t.me/Digitalyouth_ITbound_Bot)
