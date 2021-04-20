@@ -51,7 +51,7 @@ class Specialist(db):
 	
 	def __init__(self, telegram_id):
 		self.telegram_id = telegram_id
-		self.interests = None
+		self.interests = []
 		self.current_tasks = None
 
 class Representative(db):
@@ -61,7 +61,7 @@ class Representative(db):
 	
 	def __init__(self, telegram_id):
 		self.telegram_id = telegram_id
-		self.tasks = None
+		self.tasks = []
 
 class Task(db):
 	__tablename__ = 'tasks'
@@ -113,6 +113,14 @@ def add_task(name, description, spheres, represen_id):
 	Session.add(new_task)
 	Session.commit()
 
+def add_interests(spheres):
+	for r in spheres:
+		t = Session.query(Interest).filter_by(name=r).first()
+		if t == None:
+			new = Interest(r)
+			Session.add(new)
+			Session.commit()
+
 # setting
 def set_status(telegram_id, st): #st = wish_m, wish_r, m, r, s, blocked
 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
@@ -120,32 +128,50 @@ def set_status(telegram_id, st): #st = wish_m, wish_r, m, r, s, blocked
 		return False #returns Boolean
 	else: 
 		user.status = st
+		Session.commit()
 		return True
 
-# other
-def for_check_represen_users():
-	list = []
-	for instance in Session.query(User).order_by(telegram_id): 
-		if instance.status == wish_r:
-			list.append(instance)
+def change_interests(telegram_id, interests):
+	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
+	if user == None:
+		return False #returns Boolean
+	else: 
+		user.interests = []
+		for r in interests:
+			sphere = Interest(name = r)
+			user.interests.append(sphere)
+		Session.commit()
+		return True
+
+# getting
+
+def get_interests(telegram_id):
+	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
+	return user.interests
+
+def get_all_interests():
+	list = Session.query(Interest).all()
 	return list
 
-def for_check_moder_users():
-	list = []
-	for instance in Session.query(User).order_by(telegram_id): 
-		if instance.status == wish_m:
-			list.append(instance)
+def get_opened_taskes():
+	opened_taskes = Session.query(Task).filter_by(status = 'open').all()
+	return opened_taskes
+	
+def get_unchecked_taskes():
+	unchecked_taskes = Session.query(Task).filter_by(status = 'check').all()
+	return unchecked_taskes
+
+def get_check_represen_users():
+	list = Session.query(User).filter_by(status = 'wish_r').all()
 	return list
 
-def check_status(telegram_id):
+def get_check_moder_users():
+	list = Session.query(User).filter_by(status = 'wish_m').all()
+	return list
+
+def get_status(telegram_id):
 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
 	if user == None:
 		return None
 	else:
 		return user.status
-
-
-	
-
-
-
