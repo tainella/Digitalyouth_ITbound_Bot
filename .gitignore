@@ -1,4 +1,5 @@
 src/bot/secret_data
+src/bot/data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

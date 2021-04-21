@@ -1,11 +1,13 @@
-from sqlalchemy import Table, Column, Integer, String, Boolean, MetaData, ForeignKey
+from sqlalchemy import Table, Column, Integer, String, Boolean, MetaData, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy import or_
+from datetime import datetime
 
 db = declarative_base()
-engine = create_engine('sqlite:///Info.db', echo=True)
+engine = create_engine('sqlite:///data/Info.db', echo=True)
 metadata = MetaData()
 Session = sessionmaker(bind=engine)
 
@@ -46,6 +48,7 @@ class Moderator(db):
 class Specialist(db):
 	__tablename__ = 'specialists'
 	telegram_id = Column(String, primary_key=True)
+	subsribed = Column(Boolean)
 	interests = relationship('interests', backref='areas')
 	current_tasks = relationship('tasks', backref='current_tasks')
 	
@@ -53,6 +56,7 @@ class Specialist(db):
 		self.telegram_id = telegram_id
 		self.interests = []
 		self.current_tasks = None
+		self.subsribed = True
 
 class Representative(db):
 	__tablename__ = 'representatives'
@@ -72,6 +76,7 @@ class Task(db):
 	status = Column(String) #check, open, worked, closed
 	represen_id = Column(String)
 	specialist_id = Column(String)
+	time_of_creation = Column(DateTime)
 	
 	def __init__(self, name, description, spheres, represen_id):
 		self.id = session.query(Task).count() + 1
@@ -81,6 +86,7 @@ class Task(db):
 		self.status = check
 		self.represen_id = represen_id
 		self.specialist_id = None
+		self.time_of_creation = datetime.now()
 
 class Interest(db):
 	__tablename__ = 'interests'
@@ -113,7 +119,7 @@ def add_task(name, description, spheres, represen_id):
 	Session.add(new_task)
 	Session.commit()
 
-def add_interests(spheres):
+def add_spheres(spheres):
 	for r in spheres:
 		t = Session.query(Interest).filter_by(name=r).first()
 		if t == None:
@@ -143,7 +149,13 @@ def change_interests(telegram_id, interests):
 		Session.commit()
 		return True
 
+def change_subscribe(telegram_id, mode):
+	user = Session.query(Specialist).filter_by(subscribe=mode).first()
+
 # getting
+def get_user(telegram_id):
+	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
+	return user
 
 def get_interests(telegram_id):
 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
@@ -152,20 +164,20 @@ def get_interests(telegram_id):
 def get_all_interests():
 	list = Session.query(Interest).all()
 	return list
-
-def get_opened_taskes():
-	opened_taskes = Session.query(Task).filter_by(status = 'open').all()
+	
+def get_opened_taskes(spheres):
+	opened_taskes = Session.query(Task).filter_by(status = 'open').filter(or_(name == s for s in spheres)).all()
 	return opened_taskes
 	
 def get_unchecked_taskes():
 	unchecked_taskes = Session.query(Task).filter_by(status = 'check').all()
 	return unchecked_taskes
 
-def get_check_represen_users():
+def get_for_check_represen_users():
 	list = Session.query(User).filter_by(status = 'wish_r').all()
 	return list
 
-def get_check_moder_users():
+def get_for_check_moder_users():
 	list = Session.query(User).filter_by(status = 'wish_m').all()
 	return list
 
@@ -175,3 +187,24 @@ def get_status(telegram_id):
 		return None
 	else:
 		return user.status
+
+def get_current_tasks_for_spec(telegram_id):
+	list = Session.query(Task).filter_by(specialist_id = telegram_id).filter_by(status = 'worked').all()
+	return list
+
+def get_current_tasks_for_represen(telegram_id):
+	list = Session.query(Task).filter_by(represen_id = telegram_id).filter_by(status = 'worked').all()
+	return list
+
+def get_history_tasks_for_spec(telegram_id):
+	list = Session.query(Task).filter_by(specialist_id = telegram_id).filter_by(status = 'closed').all()
+	return list
+
+def get_history_tasks_for_represen(telegram_id):
+	list = Session.query(Task).filter_by(represen_id = telegram_id).filter_by(status = 'closed').all()
+	return list
+	
+	
+
+if __name__ == '__main__':
+	pass
