@@ -26,6 +26,7 @@ for file in Path("res").iterdir():
 @dp.message_handler(commands = "start")
 async def send(message: types.Message): 
     await message.reply(res_dict["start"], parse_mode="html")
+    # print(message.from_user.get_mention(as_html=True))
 
 
 if __name__ == '__main__':
