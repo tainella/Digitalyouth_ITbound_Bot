@@ -110,7 +110,7 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
 async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
     async with state.proxy() as data:
         data['spheres'] = list(filter(lambda x: data['spheres'][x], data['spheres']))
-        await callback_query.message.answer(f'Задание <i>"{data["name"]}"</i> было отправлено на проверку модерацией.', parse_mode="html")
+        await callback_query.message.answer(f'Задание <i>"{data["name"]}"</i> было отправлено на проверку модератору.', parse_mode="html")
         # TODO отсылать в БД
         await callback_query.answer()
     await state.finish()    
@@ -148,7 +148,7 @@ async def send(message: types.Message, state: FSMContext):
         if command == "Помощь":
             await message.answer(res_dict["help_representative"], parse_mode="html")
         elif command == "Добавить задачу":
-            await message.answer("Введите название задачи(не более 50 символов)", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
+            await message.answer("Введите <b>название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
             await CreateTask.name.set()
         elif command == "История задач":
             pass
@@ -160,8 +160,7 @@ async def send(callback_query: types.CallbackQuery, state: FSMContext):
     await callback_query.answer()
     await callback_query.message.delete()
     await CreateTask.name.set()
-    await callback_query.message.answer("Введите название задачи(не более 50 символов)", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
-    
+    await callback_query.message.answer("Введите <b>название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
 
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=CreateTask.spheres)
@@ -172,17 +171,19 @@ async def send(update, state: FSMContext):
         await update.answer()
         await update.message.delete()
         await CreateTask.description.set()
-        await message.answer("Введите описание задачи(не более 3000 символов)", reply_markup=utils.generate_reply_keyboard_for_tasks())
+        await message.answer("Введите <b>описание задачи</b>\n(не более 3000 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks())
     else:
         message = update
         if len(message.text) > 50:
-            await message.answer("Ошибка, название должно быть не более 50 символов", reply_markup=utils.generate_reply_keyboard_for_tasks())
+            await message.answer("Ошибка, название должно быть не более 50 символов.\n\nВведите <b>другое название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
+        elif message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
+            await message.answer('Ошибка, неправильное название.\n\nВведите <b>другое название задачи</b>\n(не более 50 символов)\nДля отмены создания задания, нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
         else:
             async with state.proxy() as data:
                 data['name'] = message.text
 
             await CreateTask.next()
-            await message.answer("Введите описание задачи(не более 3000 символов)", reply_markup=utils.generate_reply_keyboard_for_tasks())
+            await message.answer("Введите <b>описание задачи</b>\n(не более 3000 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks())
     
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=CreateTask.done)
@@ -197,7 +198,9 @@ async def send(update, state: FSMContext):
     else:
         message = update
         if len(message.text) > 2000:
-            await message.answer("Ошибка, описание должно быть не более 2000 символов", reply_markup=utils.generate_reply_keyboard_for_tasks())
+            await message.answer("Ошибка, описание должно быть не более 2000 символов.\n\nВведите <b>другое описание задачи</b>\n(не более 3000 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks())
+        elif message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
+            await message.answer('Ошибка, неправильное описание.\n\nВведите <b>другое описание задачи</b>\n(не более 3000 символов)\nДля отмены создания задания, нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks())
         else:
             async with state.proxy() as data:
                 data['description'] = message.text
