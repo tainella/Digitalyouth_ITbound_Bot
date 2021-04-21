@@ -26,6 +26,9 @@ dp = Dispatcher(bot, storage=storage)
 
 
 class CreateTask(StatesGroup):
+    """
+    КА создания задачи для представителя
+    """
     name = State()
     description = State()
     spheres = State()
@@ -42,9 +45,12 @@ def get_status(chat_id: int):
     # TODO получать статус из бд
     return "representative"
 
+# Блок обработчиков общий(Все)
+
 @dp.message_handler(commands = "start", state=None)
 async def send(message: types.Message):
     """
+    Все:
     Сообщение приветствия + генерация reply клавы
     """
     # TODO добавить эмодзи
@@ -74,7 +80,8 @@ async def send(message: types.Message):
 @dp.message_handler(Text(equals='отмена', ignore_case=True), state='*')
 async def cancel_handler(message: types.Message, state: FSMContext):
     """
-    Allow user to cancel any action
+    Все:
+    Отмена действий через команду или сообщение
     """
     current_state = await state.get_state()
     if current_state is None:
@@ -83,49 +90,24 @@ async def cancel_handler(message: types.Message, state: FSMContext):
     await state.finish()
     await message.answer('<i>Отменено.</i>', parse_mode="html")
 
+
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "cancel" , state='*')
 async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
     """
-    Allow user to cancel any action
+    Все:
+    Отмена действий через inline клавиатуру
     """
-    current_state = await state.get_state()
     await state.finish()
     await callback_query.message.delete()
     await callback_query.message.answer('Отменено')
 
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "done", state=CreateTask.spheres)
-async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
-    async with state.proxy() as data:
-        to_return = f"Подтвердите правильность составленной задачи\n<i>Название:</i>\n{data['name']}\n\n"
-        to_return += f"<i>Описание:</i>\n{data['description']}\n\n"
-        to_return += f"<i>Сферы разработки:</i>\n{', '.join(filter(lambda x: data['spheres'][x], data['spheres']))}"
-    await callback_query.message.edit_text(to_return, parse_mode="html")
-    await callback_query.message.edit_reply_markup(reply_markup=utils.generate_reply_keyboard_for_tasks_done()) 
-    await CreateTask.next()
-    await callback_query.answer()
-
-
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "done", state=CreateTask.done)
-async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
-    async with state.proxy() as data:
-        data['spheres'] = list(filter(lambda x: data['spheres'][x], data['spheres']))
-        await callback_query.message.answer(f'Задание <i>"{data["name"]}"</i> было отправлено на проверку модератору.', parse_mode="html")
-        # TODO отсылать в БД
-        await callback_query.answer()
-    await state.finish()    
-
-
-@dp.callback_query_handler(lambda callback_query: callback_query.data != "back", state=CreateTask.spheres)
-async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
-    async with state.proxy() as data:
-        data['spheres'][callback_query.data] = not data['spheres'][callback_query.data] 
-    await callback_query.message.edit_reply_markup(await utils.generate_reply_keyboard_for_tasks_spheres(state)) 
-    await callback_query.answer()
-
-
 @dp.message_handler(state=None)
 async def send(message: types.Message, state: FSMContext):
+    """
+    Все:
+    Обработка сообщений из reply клавиатуры
+    """
     user_status = get_status(message.chat.id) # moderator specialists representatives
     command = message.text
     if user_status == "moderator":
@@ -154,9 +136,59 @@ async def send(message: types.Message, state: FSMContext):
             pass
         elif command == "Текущие задачи":
             pass
+
+# Конец блока для всех
+# Блок обработки Представителя
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "done", state=CreateTask.spheres)
+async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
+    """
+    Представитель:
+    Подтверждение правильности введённых данных задачи
+    """
+    async with state.proxy() as data:
+        to_return = f"Подтвердите правильность составленной задачи\n<i>Название:</i>\n{data['name']}\n\n"
+        to_return += f"<i>Описание:</i>\n{data['description']}\n\n"
+        to_return += f"<i>Сферы разработки:</i>\n{', '.join(filter(lambda x: data['spheres'][x], data['spheres']))}"
+    await callback_query.message.edit_text(to_return, parse_mode="html")
+    await callback_query.message.edit_reply_markup(reply_markup=utils.generate_reply_keyboard_for_tasks_done()) 
+    await CreateTask.next()
+    await callback_query.answer()
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "done", state=CreateTask.done)
+async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
+    """
+    Представитель:
+    Отправка данных задачи на модерацию
+    """
+    async with state.proxy() as data:
+        data['spheres'] = list(filter(lambda x: data['spheres'][x], data['spheres']))
+        await callback_query.message.answer(f'Задание <i>"{data["name"]}"</i> было отправлено на проверку модератору.', parse_mode="html")
+        # TODO отсылать в БД
+        await callback_query.answer()
+    await state.finish()    
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data != "back", state=CreateTask.spheres)
+async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
+    """
+    Представитель:
+    Выбор сфер разработки задачи
+    """
+    async with state.proxy() as data:
+        data['spheres'][callback_query.data] = not data['spheres'][callback_query.data] 
+    await callback_query.message.edit_reply_markup(await utils.generate_reply_keyboard_for_tasks_spheres(state)) 
+    await callback_query.answer()
+
     
+
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=CreateTask.description)
 async def send(callback_query: types.CallbackQuery, state: FSMContext):
+    """
+    Представитель:
+    Выбор названия задачи
+    """
     await callback_query.answer()
     await callback_query.message.delete()
     await CreateTask.name.set()
@@ -166,6 +198,10 @@ async def send(callback_query: types.CallbackQuery, state: FSMContext):
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=CreateTask.spheres)
 @dp.message_handler(state=CreateTask.name)
 async def send(update, state: FSMContext):
+    """
+    Представитель:
+    Выбор описания задачи иы обработка неправильного названия
+    """
     if isinstance(update, types.CallbackQuery):
         message = update.message
         await update.answer()
@@ -189,6 +225,10 @@ async def send(update, state: FSMContext):
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=CreateTask.done)
 @dp.message_handler(state=CreateTask.description)
 async def send(update, state: FSMContext):
+    """
+    Представитель:
+    Выбор сферы разработки и обработка неправильного описания
+    """
     if isinstance(update, types.CallbackQuery):
         message = update.message
         await update.answer()
@@ -210,8 +250,15 @@ async def send(update, state: FSMContext):
             await message.answer("Выберите сферы разработки", reply_markup=await utils.generate_reply_keyboard_for_tasks_spheres(state))
 
 
+# Конец блока Представителя
+# Блок обработки колбеков от всех 
+
 @dp.callback_query_handler(state='*')
 async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
+    """
+    Все
+    Обработка несуществуещего колбека
+    """
     await callback_query.answer("Ошибка, начните заного")
 
 
