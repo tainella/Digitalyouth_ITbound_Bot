@@ -10,69 +10,20 @@ db = declarative_base()
 engine = create_engine('sqlite:///data/Info.db', echo=True)
 metadata = MetaData()
 Session = sessionmaker(bind=engine)
+Session = Session()
 
-class User(db):
-    __tablename__ = 'users'
-    telegram_id = Column(String, primary_key=True)
-    username = Column(String)
-    telegram_fullname = Column(String)
-    bot_block = Column(Boolean) #true = blocked and false = unblocked
-    real_fullname = Column(String)
-    phone = Column(String)
-    status = Column(String) #wish_m, wish_r, m, r, s, blocked
-    moderator = relationship('moderators', backref='moders', uselist=False)
-    specialist = relationship('specialists', backref='special', uselist=False)
-    representative = relationship('representatives', backref='represents', uselist=False)
-    
-    def __init__(self, telegram_id, username, telegram_fullname, real_fullname, phone, status, spec = None):
-        self.telegram_id = telegram_id
-        self.username = username
-        self.telegram_fullname = telegram_fullname
-        self.bot_block = False
-        self.real_fullname = real_fullname
-        self.phone = phone
-        self.status = status
-        self.moderator = None
-        self.specialist = spec
-        self.representative = None
-
-class Moderator(db):
-	__tablename__ = 'moderators'
-	telegram_id = Column(String, primary_key=True)
-	is_admin = Column(Boolean)
-	
-	def __init__(self, telegram_id):
-		self.telegram_id = telegram_id
-		self.is_admin = False
-
-class Specialist(db):
-	__tablename__ = 'specialists'
-	telegram_id = Column(String, primary_key=True)
-	subsribed = Column(Boolean)
-	interests = relationship('interests', backref='areas')
-	current_tasks = relationship('tasks', backref='current_tasks')
-	
-	def __init__(self, telegram_id):
-		self.telegram_id = telegram_id
-		self.interests = []
-		self.current_tasks = None
-		self.subsribed = True
-
-class Representative(db):
-	__tablename__ = 'representatives'
-	telegram_id = Column(String, primary_key=True)
-	tasks = relationship('tasks', backref='published_tasks')
-	
-	def __init__(self, telegram_id):
-		self.telegram_id = telegram_id
-		self.tasks = []
+class Interest(db):
+	__tablename__ = 'interests'
+	name = Column(String, primary_key=True)
+	def __init__(self, name):
+		self.name = name
 
 class Task(db):
 	__tablename__ = 'tasks'
 	id = Column(Integer, primary_key=True)
 	name = Column(String)
 	description = Column(String)
-	spheres = relationship('interests', backref='spheres')
+	spheres = relationship('Interest', backref="spheres1")
 	status = Column(String) #check, open, worked, closed
 	represen_id = Column(String)
 	specialist_id = Column(String)
@@ -88,20 +39,72 @@ class Task(db):
 		self.specialist_id = None
 		self.time_of_creation = datetime.now()
 
-class Interest(db):
-	__tablename__ = 'interests'
-	name = Column(String, primary_key=True)
-	def __init__(self, name):
-		self.name = name
+class Moderator(db):
+	__tablename__ = 'moderators'
+	telegram_id = Column(String, primary_key=True)
+	is_admin = Column(Boolean)
+	
+	def __init__(self, telegram_id):
+		self.telegram_id = telegram_id
+		self.is_admin = False
+
+class Specialist(db):
+	__tablename__ = 'specialists'
+	telegram_id = Column(String, primary_key=True)
+	subsribed = Column(Boolean)
+	interests = relationship('interests', backref="areas")
+	current_tasks = relationship('tasks', backref="current_tasks")
+	
+	def __init__(self, telegram_id):
+		self.telegram_id = telegram_id
+		#self.interests = []
+		#self.current_tasks = []
+		self.subsribed = True
+
+class Representative(db):
+	__tablename__ = 'representatives'
+	telegram_id = Column(String, primary_key=True)
+	tasks = relationship('tasks', backref="published_tasks")
+	
+	def __init__(self, telegram_id):
+		self.telegram_id = telegram_id
+		self.tasks = []
+
+class User(db):
+    __tablename__ = 'users'
+    telegram_id = Column(String, primary_key=True)
+    username = Column(String)
+    telegram_fullname = Column(String)
+    bot_block = Column(Boolean) #true = blocked and false = unblocked
+    real_fullname = Column(String)
+    phone = Column(String)
+    status = Column(String) #wish_m, wish_r, m, r, s, blocked
+    moderator = relationship('moderators', backref="moders", uselist=False)
+    specialist = relationship('specialists', backref="special", uselist=False)
+    representative = relationship('representatives', backref="represents", uselist=False)
+    
+    def __init__(self, telegram_id, username, telegram_fullname, real_fullname, phone, status, spec = []):
+        self.telegram_id = telegram_id
+        self.username = username
+        self.telegram_fullname = telegram_fullname
+        self.bot_block = False
+        self.real_fullname = real_fullname
+        self.phone = phone
+        self.status = status
+        self.moderator = None
+        self.specialist = spec
+        self.representative = None
 
 db.metadata.create_all(engine)
 
 # adding
 def add_user(telegram_id, username, telegram_fullname, real_fullname, phone, status):
 	if status == 's':
+		print('BEFORE User')
 		add_spec(telegram_id)
 		spec = Session.query(Specialist).filter_by(telegram_id=telegram_id).first()
 		new_user = User(telegram_id, username, telegram_fullname, real_fullname, phone, status, spec)
+		print('AFTER User')
 	elif status == 'wish_m':
 		new_user = User(telegram_id, username, telegram_fullname, real_fullname, phone, status)
 	elif status == 'wish_r':
@@ -110,7 +113,9 @@ def add_user(telegram_id, username, telegram_fullname, real_fullname, phone, sta
 	Session.commit()
 
 def add_spec(telegram_id):
+	print('BEFORE Spec')
 	new_spec = Specialist(telegram_id)
+	print('BEFORE Spec')
 	Session.add(new_spec)
 	Session.commit()
 
@@ -123,7 +128,9 @@ def add_spheres(spheres):
 	for r in spheres:
 		t = Session.query(Interest).filter_by(name=r).first()
 		if t == None:
+			print('BEFORE Interest')
 			new = Interest(r)
+			print('AFTER Interest')
 			Session.add(new)
 			Session.commit()
 
@@ -207,4 +214,8 @@ def get_history_tasks_for_represen(telegram_id):
 	
 
 if __name__ == '__main__':
+	add_spheres(['ML','Web'])
+	add_user('6567987', 'tea', 'Hoop Hoop', 'Ho Ho Ho', '45698460469', 's')
+	change_interests('6567987', ['ML'])
+	print(get_interests('6567987'))
 	pass
