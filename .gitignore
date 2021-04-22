@@ -1,5 +1,7 @@
-src/bot/secret_data
-src/bot/data
+src/secret_data/*
+src/data/*
+!src/secret_data/README.md
+!src/data/README.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

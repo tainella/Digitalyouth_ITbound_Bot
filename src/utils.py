@@ -32,7 +32,7 @@ async def generate_reply_keyboard_for_tasks_spheres(state: FSMContext):
     async with state.proxy() as data:
         spheres = data['spheres']
         for key in spheres:
-            checked = "☑️ " if spheres[key] else '☐ '
+            checked = "☑️ " if spheres[key] else '☐ ' # TODO поискать другие эмодзи
             if even:
                 keyboard.add(InlineKeyboardButton(checked + key, callback_data=key))
             else:
