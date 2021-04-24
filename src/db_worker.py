@@ -235,6 +235,11 @@ def add_spheres_global(spheres):
 	Session.commit()
 
 # # setting
+
+#ОБЯЗАТЕЛЬНО ДОБАВИТЬ УДАЛЕНИЕ СФЕР
+#def delete_spheres_global(spheres):
+
+
 def set_status(user, st): #st = wish_m, wish_r, m, r, s, blocked
     user.status = st
     Session.commit()
