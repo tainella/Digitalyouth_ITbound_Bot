@@ -243,7 +243,7 @@ def set_status(telegram_id, st): #st = wish_m, wish_r, m, r, s, blocked
         Session.commit()
         return True
 
-def change_spheres(telegram_id, spheres):
+def set_spesialist_spheres(telegram_id, spheres):
     user = Session.query(User).filter_by(telegram_id=telegram_id).first()
     if user == None:
         raise Exception("Ошибка, юзера {telegram_id} не существует")
@@ -268,12 +268,20 @@ def change_spheres(telegram_id, spheres):
         Session.commit()
         return True
 
-def change_subscribe(telegram_id, mode):
+def set_subscribe(telegram_id, mode):
     user = Session.query(Specialist).filter_by(subscribe=mode).first()
     if user == None:
         raise Exception("Ошибка, юзера {telegram_id} не существует")
     else:
         user.mode = mode
+        Session.commit()
+
+def set_task_status(task_name, status):
+    task = Session.query(Task).filter_by(name=task_name).first()
+    if task == None:
+        raise Exception("Ошибка, задания {task_name} не существует")
+    else:
+        task.status = status
         Session.commit()
 
 # getting
@@ -300,13 +308,13 @@ def get_all_interests():
     return list
 	
 # # TODO переделать чтобы работало
-# # def get_opened_taskes(spheres):
-# # 	opened_taskes = Session.query(Task).filter_by(status = 'open').filter(or_(name == s for s in spheres)).all()
-# # 	return opened_taskes
+def get_opened_taskes(spheres):
+    opened_taskes = Session.query(Task).filter_by(status = 'open').filter(or_(name == s for s in spheres)).all()
+    return opened_taskes
 	
-# def get_unchecked_taskes():
-# 	unchecked_taskes = Session.query(Task).filter_by(status = 'check').all()
-# 	return unchecked_taskes
+def get_unchecked_taskes():
+    unchecked_taskes = Session.query(Task).filter_by(status = 'check').all()
+    return unchecked_taskes
 
 # def get_for_check_represen_users():
 # 	list = Session.query(User).filter_by(status = 'wish_r').all()
@@ -357,8 +365,11 @@ if __name__ == '__main__':
     #user1 = add_user("44", "специалист_kek")
     #add_specialist(user1)
     print('-----')
-    change_spheres("44", ["Дизайн", "Разработка ботов", "МЛ"])
+    set_spesialist_spheres("44", ["Дизайн", "Разработка ботов", "МЛ"])
     list = get_spesialist_spheres("44")
+    for i in list:
+        print(i)
+    list = get_unchecked_taskes()
     for i in list:
         print(i)
     pass
