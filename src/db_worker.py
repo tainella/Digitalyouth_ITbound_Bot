@@ -1,60 +1,98 @@
 from datetime import datetime
 import logging
+import random
 
 from sqlalchemy import Table, Column, Integer, String, Boolean, MetaData, ForeignKey, DateTime
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import or_
+from sqlalchemy import exc
 
-logging.basicConfig(level=logging.WARNING, format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%y-%m-%d %H:%M:%S')
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%y-%m-%d %H:%M:%S')
 db = declarative_base()
-engine = create_engine('sqlite:///data/database.db', echo=True)
+engine = create_engine('sqlite:///data/database.db', echo=False)
 metadata = MetaData()
 Session = sessionmaker(bind=engine)
 Session = Session()
 
-spheres_to_tasks_table = Table('spheres_to_tasks', db.metadata,
-    Column('sphere_name', String, ForeignKey('sphere.name')),
-    Column('task_id', Integer, ForeignKey('task.id'))
-)
+# Блок создания БД
 
-spheres_to_specialists_table = Table('spheres_to_specialists', db.metadata,
-    Column('sphere_name', String, ForeignKey('sphere.name')),
-    Column('specialist_id', Integer, ForeignKey('specialist.id'))
-)
+# spheres_to_tasks_table = Table('spheres_to_tasks', db.metadata,
+#     Column('sphere_name', String, ForeignKey('sphere.name')),
+#     Column('task_id', Integer, ForeignKey('task.id'))
+# )
+
+# spheres_to_specialists_table = Table('spheres_to_specialists', db.metadata,
+#     Column('sphere_name', String, ForeignKey('sphere.name')),
+#     Column('specialist_id', Integer, ForeignKey('specialist.id'))
+# )
+class SpheresToTasks(db):
+	__tablename__ = 'spheres_to_tasks'
+	
+	id = Column(Integer, primary_key=True)
+	sphere_name = Column(String, ForeignKey('sphere.name'), nullable=True)
+	task_id = Column(Integer, ForeignKey('task.id'), nullable=True)
+	task = relationship("Task", back_populates = "spheres")
+	spheres = relationship("Sphere", backref = backref("spheres_tasks"))	
+
+	def __init__(self, task=None, sphere=None):
+		self.sphere = sphere
+		self.task = task
+
+class SpheresToSpecialists(db):
+	__tablename__ = 'spheres_to_specialists'
+	
+	id = Column(Integer, primary_key=True)
+	sphere_name = Column(String, ForeignKey('sphere.name'), nullable=True)
+	specialist_id = Column(Integer, ForeignKey('specialist.id'), nullable=True)
+	spheres = relationship("Sphere", backref = backref("spheres_specialists"))	
+	specialist = relationship("Specialist", back_populates = "spheres")	
+
+	def __init__(self, specialist=None, sphere=None):
+			self.sphere = sphere
+			self.specialist = specialist
 
 class Sphere(db):
 	__tablename__ = 'sphere'
 	name = Column(String, primary_key=True)
-	tasks = relationship("Task", secondary=spheres_to_tasks_table, back_populates="spheres")
-	specialists = relationship("Specialist", secondary=spheres_to_specialists_table, back_populates="spheres")
+	# tasks = relationship("SpheresToTasks", back_populates="sphere")
+	# specialists = relationship("SpheresToSpecialists", back_populates="sphere")
+	specialists = association_proxy("spheres_specialists", "specialists")
+	tasks = association_proxy("spheres_tasks", "task")
 	def __init__(self, name):
 		self.name = name
+		self.tasks = []
+		self.specialists = []
 
 class Task(db):
 	__tablename__ = 'task'
 	id = Column(Integer, primary_key=True)
 	name = Column(String)
 	description = Column(String)
-	spheres = relationship("Sphere", secondary=spheres_to_tasks_table, back_populates="tasks")
+	spheres = relationship("SpheresToTasks", back_populates="task")
 	status = Column(String) #check, open, worked, closed
-	representative_id = Column(String, ForeignKey('representative.id'))	
+	representative_id = Column(Integer, ForeignKey('representative.id'))	
 	representative = relationship("Representative", back_populates="tasks")
-	specialist_id = Column(String, ForeignKey('specialist.id'))	
+	specialist_id = Column(Integer, ForeignKey('specialist.id'))	
 	specialist = relationship("Specialist", back_populates="tasks")
 	time_of_creation = Column(DateTime)
 	
-	def __init__(self, name, description, representative, spheres = None):
+	def __init__(self, name, description, representative):
 		self.name = name
 		self.description = description
-		self.spheres = spheres
 		self.representative = representative
 		
+		self.spheres = []
 		self.status = 'check'
 		self.time_of_creation = datetime.now() # TODO поставить временную зону UTC+3
+
+	def __str__(self):
+		return "Название: {},\t описание: {},\t сферы: {}, статус: {}, время создания: {}, представитель: {}, специалист: {}".format(
+			self.name, self.description, self.spheres, self.status, self.time_of_creation, self.representative, self.specialist
+		)
 
 class Moderator(db):
 	__tablename__ = 'moderator'
@@ -63,8 +101,10 @@ class Moderator(db):
 	user = relationship("User", back_populates="moderator")
 	is_admin = Column(Boolean)
 	
-	def __init__(self):
+	def __init__(self, user):
 		self.is_admin = False
+		self.user = user
+
 
 class Specialist(db):
 	__tablename__ = 'specialist'
@@ -72,11 +112,13 @@ class Specialist(db):
 	user_id = Column(String, ForeignKey('user.telegram_id'))	
 	user = relationship("User", back_populates="specialist")
 	subsribed = Column(Boolean)
-	spheres = relationship("Sphere", secondary=spheres_to_specialists_table, back_populates="specialists")
+	spheres = relationship("SpheresToSpecialists", back_populates="specialist")
 	tasks = relationship('Task', back_populates="specialist")
 	
-	def __init__(self):
+	def __init__(self, user):
 		self.subsribed = True
+		self.user = user
+
 
 class Representative(db):
 	__tablename__ = 'representative'
@@ -88,61 +130,110 @@ class Representative(db):
 	def __init__(self, user):
 		self.user = user
 
+
 class User(db):
-    __tablename__ = 'user'
-    telegram_id = Column(String, primary_key=True)
-    username = Column(String, nullable=True)
-    telegram_fullname = Column(String)
-    real_fullname = Column(String, nullable=True)
-    phone = Column(String, nullable=True)
-    status = Column(String, nullable=True) #wish_moder, wish_rerpre, moderator, representative, specialist, blocked
-    moderator = relationship('Moderator', back_populates="user", uselist=False)
-    specialist = relationship('Specialist', back_populates="user", uselist=False)
-    representative = relationship('Representative', back_populates="user", uselist=False)
-    
-    def __init__(self, telegram_id, telegram_fullname, username=None):
-        self.telegram_id = telegram_id
-        self.username = username
-        self.telegram_fullname = telegram_fullname
+	__tablename__ = 'user'
+	telegram_id = Column(String, primary_key=True)
+	username = Column(String, nullable=True)
+	telegram_fullname = Column(String)
+	real_fullname = Column(String, nullable=True)
+	phone = Column(String, nullable=True)
+	status = Column(String, nullable=True) #wish_moder, wish_rerpre, moderator, representative, specialist, blocked
+	moderator = relationship('Moderator', back_populates="user", uselist=False)
+	specialist = relationship('Specialist', back_populates="user", uselist=False)
+	representative = relationship('Representative', back_populates="user", uselist=False)
+
+	def __init__(self, telegram_id, telegram_fullname, username=None):
+		self.telegram_id = telegram_id
+		self.username = username
+		self.telegram_fullname = telegram_fullname
+
+	def __str__(self):
+		return f"телеграм ID: {self.telegram_id},\tтелеграм никнейм: {self.telegram_fullname},\tтелеграм юзернейм: {self.username}"
 
 db.metadata.create_all(engine)
 
-# # adding
-# def add_user(telegram_id, username, telegram_fullname, real_fullname, phone, status):
-# 	if status == 's':
-# 		print('BEFORE User')
-# 		add_spec(telegram_id)
-# 		spec = Session.query(Specialist).filter_by(telegram_id=telegram_id).first()
-# 		new_user = User(telegram_id, username, telegram_fullname, real_fullname, phone, status, spec)
-# 		print('AFTER User')
-# 	elif status == 'wish_m':
-# 		new_user = User(telegram_id, username, telegram_fullname, real_fullname, phone, status)
-# 	elif status == 'wish_r':
-# 		new_user = User(telegram_id, username, telegram_fullname, real_fullname, phone, status)
-# 	Session.add(new_user)
-# 	Session.commit()
+# Конец блока создания БД, начало инкапсуляция
+# Блок Добавления
 
-# def add_spec(telegram_id):
-# 	print('BEFORE Spec')
-# 	new_spec = Specialist(telegram_id)
-# 	print('BEFORE Spec')
-# 	Session.add(new_spec)
-# 	Session.commit()
+def add_user(telegram_id: str, telegram_fullname: str, username: str = None):
+	"""
+	Добавление нового юзера
+	"""
+	if get_user(telegram_id):
+		raise Exception(f"Ошибка, тегерам id {telegram_id} должен быть уникальным")
+	else:
+		new_user = User(telegram_id,  telegram_fullname, username)
+		Session.add(new_user)
+		Session.commit()
+		logging.info(f"Юзер: '{new_user}' был успешно добавлен")
+		return new_user
 
-# def add_task(name, description, spheres, represen_id):
-# 	new_task = Task(name, description, spheres, represen_id)
-# 	Session.add(new_task)
-# 	Session.commit()
+# TODO обрабатывать случай, если юзер имеет другую роль
+def add_specialist(user):
+	if not user.specialist:
+		new_spec = Specialist(user)
+		Session.add(new_spec)
+		Session.commit()
+		logging.info(f"Юзер стал специалистом")
+		user.status = "specialist"
+		return new_spec
+	else:
+		raise Exception("Ошибка, юзер уже является специалистом")
 
-# def add_spheres(spheres):
-# 	for r in spheres:
-# 		t = Session.query(Sphere).filter_by(name=r).first()
-# 		if t == None:
-# 			print('BEFORE Interest')
-# 			new = Sphere(r)
-# 			print('AFTER Interest')
-# 			Session.add(new)
-# 			Session.commit()
+
+def add_moderator(user):
+	if not user.moderator:
+		new_moder = Moderator(user)
+		Session.add(new_moder)
+		Session.commit()
+		logging.info(f"Юзер стал модератором")
+		user.status = "moderator"
+		return new_moder
+	else:
+		raise Exception("Ошибка, юзер уже является модератором")
+
+
+def add_representative(user):
+	if not user.representative:
+		new_representative = Representative(user)
+		Session.add(new_representative)
+		Session.commit()
+		logging.info(f"Юзер стал представителем")
+		user.status = "representative"
+		return new_representative
+	else:
+		raise Exception("Ошибка, юзер уже является представителем")
+
+
+def add_task(name, description, representative, spheres: list = None):
+	spheres_db = [] 
+	for sphere in spheres:
+		t = Session.query(Sphere).filter_by(name=sphere).first()
+		if t is None:
+			raise Exception(f'Сфера "{sphere}" не существует') 
+		else:
+			spheres_db.append(t)
+	new_task = Task(name, description, representative)
+	for sphere in spheres_db:
+		assosiation = SpheresToTasks()
+		assosiation.sphere = sphere
+		new_task.spheres.append(assosiation)
+	Session.add(new_task)
+	Session.commit()
+	logging.info("Задание создано")
+	return new_task
+
+
+def add_spheres_global(spheres):
+	for sphere in spheres:
+		already_added = Session.query(Sphere).filter_by(name=sphere).first()
+		if already_added is None:
+			new_sphere = Sphere(sphere)
+			Session.add(new_sphere)
+		else:
+			logging.warning(f'Сфера "{sphere}" уже добавлена')
+	Session.commit()
 
 # # setting
 # def set_status(telegram_id, st): #st = wish_m, wish_r, m, r, s, blocked
@@ -169,10 +260,11 @@ db.metadata.create_all(engine)
 # def change_subscribe(telegram_id, mode):
 # 	user = Session.query(Specialist).filter_by(subscribe=mode).first()
 
-# # getting
-# def get_user(telegram_id):
-# 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-# 	return user
+# getting
+def get_user(telegram_id):
+	telegram_id = str(telegram_id)
+	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
+	return user if user is not None else False
 
 # def get_sphere(telegram_id):
 # 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
@@ -226,38 +318,12 @@ db.metadata.create_all(engine)
 	
 
 if __name__ == '__main__':
-	print("\n\n\n")	
-	
-	# new_user = User("0", "TeaDove")
-	# Session.add(new_user)
-	# new_repr = Representative(new_user)
-	# Session.add(new_repr)
-	# Session.commit()
+	# user = add_user(10, "представитель_kek")
+	# add_representative(user)
+	repr_ = get_user(10).representative
+	add_spheres_global(['МЛ', "Разработка ботов", "Дизайн"])
 
-	spheres = Session.query(Sphere).all()
-	print(spheres)
-	repr_ = Session.query(User).filter_by(telegram_id="0").all()[0].representative
-	new_task = Task("Купить пиво", "Послать Амелию за пивом", repr_, spheres)
-	Session.add(new_task)
-	print(new_task.spheres)
-	# Session.add(spheres[0])
-	# Session.add(spheres[1])
-	# Session.add(spheres[2])
-	# Session.commit()
+	task = add_task("Купить пиво", "Сходить в магаз и купить пиво", repr_, ["МЛ", "Дизайн"])
+	print(task.spheres[0].spheres)
 
-
-
-	# print(Session.query(User).filter_by(telegram_id="0").all()[0])
-	
-	# new_task = Task("Купить пиво", "Послать Амелию за пивом", repr_)
-	# Session.add(new_task)
-	# Session.commit()
-	# print(repr_.tasks[0].__dict__)
-	# print()
-	# add_spheres(['ML','Web'])
-	# add_user('6567987', 'tea', 'Hoop Hoop', 'Ho Ho Ho', '45698460469', 's')
-	# change_spheres('6567987', ['ML'])
-	# print(get_sphere('6567987'))
-
-	
 	pass
