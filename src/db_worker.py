@@ -144,7 +144,7 @@ class User(db):
 
 db.metadata.create_all(engine)
 
-# Конец блока создания БД, начало инкапсуляция
+# Конец блока создания БД, начало инкапсуляции
 # Блок Добавления
 
 def add_user(telegram_id: str, telegram_fullname: str, username: str = None):
@@ -224,7 +224,6 @@ def add_task(name, description, representative, spheres: list = None):
         logging.warning(f'Задание "{name}" уже добавлено')
     return task
 
-
 def add_spheres_global(spheres):
 	for sphere in spheres:
 		already_added = Session.query(Sphere).filter_by(name=sphere).first()
@@ -236,47 +235,35 @@ def add_spheres_global(spheres):
 	Session.commit()
 
 # # setting
-def set_status(telegram_id, st): #st = wish_m, wish_r, m, r, s, blocked
-	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-	if user == None:
-		return False #returns Boolean
-	else:
-		user.status = st
-		Session.commit()
-		return True
+def set_status(user, st): #st = wish_m, wish_r, m, r, s, blocked
+    user.status = st
+    Session.commit()
+    return True
 
-def set_spesialist_spheres(telegram_id, spheres):
-	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-	if user == None:
-		raise Exception("Ошибка, юзера {telegram_id} не существует")
-	else:
-		if user.specialist == None:
-			raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
-		interests = []
-		for r in spheres:
-			t = Session.query(Sphere).filter_by(name=r).first()
-			if t is None:
-				raise Exception(f'Сфера "{sphere}" не существует')
-			else:
-				interests.append(t)
-		spec = user.specialist
-		spec.spheres = []
-		for sphere in interests:
-			assosiation = SpheresToSpecialists()
-			assosiation.spheres = sphere
-			Session.add(assosiation)
-			Session.commit()
-			spec.spheres.append(assosiation)
-		Session.commit()
-		return True
+def set_spesialist_spheres(user, spheres):
+    interests = []
+    for r in spheres:
+        t = Session.query(Sphere).filter_by(name=r).first()
+        if t is None:
+            raise Exception(f'Сфера "{sphere}" не существует')
+        else:
+            interests.append(t)
+    spec = user.specialist
+    if spec == None:
+        raise Exception("Ошибка, юзер не является специалистом")
+    spec.spheres = []
+    for sphere in interests:
+        assosiation = SpheresToSpecialists()
+        assosiation.spheres = sphere
+        Session.add(assosiation)
+        Session.commit()
+        spec.spheres.append(assosiation)
+    Session.commit()
+    return True
 
-def set_subscribe(telegram_id, mode):
-	user = Session.query(Specialist).filter_by(subscribe=mode).first()
-	if user == None:
-		raise Exception("Ошибка, юзера {telegram_id} не существует")
-	else:
-		user.mode = mode
-		Session.commit()
+def set_subscribe(user, mode):
+    user.mode = mode
+    Session.commit()
 
 def set_task_status(task_name, status):
 	task = Session.query(Task).filter_by(name=task_name).first()
@@ -292,18 +279,15 @@ def get_user(telegram_id):
 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
 	return user if user is not None else False
 
-def get_spesialist_spheres(telegram_id):
-	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-	if user == None:
-		raise Exception("Ошибка, юзера {telegram_id} не существует")
-	else:
-		if user.specialist == None:
-			raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
-		sp_sh = user.specialist.spheres
-		y = []
-		for i in sp_sh:
-			y.append(i.spheres.name)
-		return y
+def get_spesialist_spheres(user):
+    user = Session.query(User).filter_by(telegram_id=telegram_id).first()
+    if user.specialist == None:
+        raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
+    sp_sh = user.specialist.spheres
+    y = []
+    for i in sp_sh:
+        y.append(i.spheres.name)
+    return y
 
 def get_all_interests():
     list_ = Session.query(Sphere).all()
@@ -327,13 +311,6 @@ def get_for_check_moder_users():
     list = Session.query(User).filter_by(status = 'wish_m').all()
     return list
 
-def get_user_status(telegram_id):
-    user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-    if user == None:
-        raise Exception("Ошибка, юзера {telegram_id} не существует")
-    else:
-        return user.status
-
 def get_tasks_for_user(user, type_of_user, task_status):
     if type_of_user == 'specialist':
         if user.specialist == None:
@@ -351,16 +328,6 @@ def get_tasks_for_user(user, type_of_user, task_status):
             curr.append(task)
     return curr
 
-# def get_history_tasks_for_spec(telegram_id):
-# 	list = Session.query(Task).filter_by(specialist_id = telegram_id).filter_by(status = 'closed').all()
-# 	return list
-
-# def get_history_tasks_for_represen(telegram_id):
-# 	list = Session.query(Task).filter_by(represen_id = telegram_id).filter_by(status = 'closed').all()
-
-# 	return list
-	
-	
 
 if __name__ == '__main__':
 	pass
