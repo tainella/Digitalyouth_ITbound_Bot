@@ -180,11 +180,7 @@ def add_moderator(user):
 		Session.add(new_moder)
 		logging.info(f"Юзер стал модератором")
 		user.status = "moderator"
-<<<<<<< HEAD
         Session.commit()
-=======
-		Session.commit()
->>>>>>> 2e2f7b13413dfcbba540d8a1657de08c2af0f65f
 		return new_moder
 	else:
 		raise Exception("Ошибка, юзер уже является модератором")
@@ -196,11 +192,7 @@ def add_representative(user):
 		Session.add(new_representative)
 		logging.info(f"Юзер стал представителем")
 		user.status = "representative"
-<<<<<<< HEAD
         Session.commit()
-=======
-		Session.commit()
->>>>>>> 2e2f7b13413dfcbba540d8a1657de08c2af0f65f
 		return new_representative
 	else:
 		raise Exception("Ошибка, юзер уже является представителем")
