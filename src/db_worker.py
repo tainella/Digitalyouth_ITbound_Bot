@@ -20,15 +20,6 @@ Session = Session()
 
 # Блок создания БД
 
-# spheres_to_tasks_table = Table('spheres_to_tasks', db.metadata,
-#     Column('sphere_name', String, ForeignKey('sphere.name')),
-#     Column('task_id', Integer, ForeignKey('task.id'))
-# )
-
-# spheres_to_specialists_table = Table('spheres_to_specialists', db.metadata,
-#     Column('sphere_name', String, ForeignKey('sphere.name')),
-#     Column('specialist_id', Integer, ForeignKey('specialist.id'))
-# )
 class SpheresToTasks(db):
 	__tablename__ = 'spheres_to_tasks'
 	
@@ -207,22 +198,29 @@ def add_representative(user):
 
 
 def add_task(name, description, representative, spheres: list = None):
-	spheres_db = [] 
-	for sphere in spheres:
-		t = Session.query(Sphere).filter_by(name=sphere).first()
-		if t is None:
-			raise Exception(f'Сфера "{sphere}" не существует') 
-		else:
-			spheres_db.append(t)
-	new_task = Task(name, description, representative)
-	for sphere in spheres_db:
-		assosiation = SpheresToTasks()
-		assosiation.sphere = sphere
-		new_task.spheres.append(assosiation)
-	Session.add(new_task)
-	Session.commit()
-	logging.info("Задание создано")
-	return new_task
+    task = Session.query(Task).filter_by(name=name).first()
+    if task == None:
+        spheres_db = []
+        for sphere in spheres:
+            t = Session.query(Sphere).filter_by(name=sphere).first()
+            if t is None:
+                raise Exception(f'Сфера "{sphere}" не существует')
+            else:
+                spheres_db.append(t)
+        new_task = Task(name, description, representative)
+        for sphere in spheres_db:
+            assosiation = SpheresToTasks()
+            assosiation.sphere = sphere
+            Session.add(assosiation)
+            Session.commit()
+            new_task.spheres.append(assosiation)
+        Session.add(new_task)
+        Session.commit()
+        logging.info("Задание создано")
+        task = Session.query(Task).filter_by(name=name).first()
+    else:
+        logging.warning(f'Задание "{name}" уже добавлено')
+    return task
 
 
 def add_spheres_global(spheres):
@@ -270,9 +268,9 @@ def get_user(telegram_id):
 # 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
 # 	return user.spheres
 
-# def get_all_interests():
-# 	list = Session.query(Sphere).all()
-# 	return list
+def get_all_interests():
+    list = Session.query(Sphere).all()
+    return list
 	
 # # TODO переделать чтобы работало
 # # def get_opened_taskes(spheres):
@@ -318,12 +316,11 @@ def get_user(telegram_id):
 	
 
 if __name__ == '__main__':
-	# user = add_user(10, "представитель_kek")
-	# add_representative(user)
-	repr_ = get_user(10).representative
-	add_spheres_global(['МЛ', "Разработка ботов", "Дизайн"])
-
-	task = add_task("Купить пиво", "Сходить в магаз и купить пиво", repr_, ["МЛ", "Дизайн"])
-	print(task.spheres[0].spheres)
-
-	pass
+    #user = add_user(10, "представитель_kek")
+    #add_representative(user)
+    repr_ = get_user(10).representative
+    add_spheres_global(["МЛ", "Разработка ботов", "Дизайн"])
+    task = add_task("Купить пиво", "Сходить в магаз и купить пиво", repr_, ["МЛ", "Дизайн"])
+    task1 = add_task("Купить пиво", "Сходить в магаз и купить пиво", repr_, ["МЛ", "Дизайн"])
+    print(task.spheres[0].spheres)
+    pass
