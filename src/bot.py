@@ -13,6 +13,7 @@ from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
 import utils
+import db_worker
 
 BASE = Path(os.path.realpath(__file__))
 os.chdir(BASE.parent)
@@ -54,26 +55,28 @@ async def send(message: types.Message):
     Все:
     Сообщение приветствия + генерация reply клавы
     """
-    # TODO добавить эмодзи
-    user_status = get_status(message.chat.id) # moderator specialist representative
+    db_user = db_worker.get_user(message.from_user.id)
+    
     reply_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-    if user_status == "moderator":
-        reply_keyboard.add(KeyboardButton('Начать модерацию')) 
-        reply_keyboard.insert(KeyboardButton('Помощь')) 
-    elif user_status == "specialist":
-        reply_keyboard.add(KeyboardButton('Список доступных задач')) 
-        reply_keyboard.add(KeyboardButton('Текущие задачи')) 
-        reply_keyboard.insert(KeyboardButton('История задач'))
-        reply_keyboard.add(KeyboardButton('Настройки')) 
-        reply_keyboard.insert(KeyboardButton('Помощь')) 
-    elif user_status == "representative":
-        reply_keyboard.add(KeyboardButton('Добавить задачу')) 
-        reply_keyboard.add(KeyboardButton('Текущие задачи')) 
-        reply_keyboard.insert(KeyboardButton('История задач')) 
-        reply_keyboard.add(KeyboardButton('Помощь')) 
+    if db_user:
+        # TODO добавить эмодзи
+        if db_user.status == "moderator":
+            reply_keyboard.add(KeyboardButton('Начать модерацию')) 
+            reply_keyboard.insert(KeyboardButton('Помощь')) 
+        elif db_user.status == "specialist":
+            reply_keyboard.add(KeyboardButton('Список доступных задач')) 
+            reply_keyboard.add(KeyboardButton('Текущие задачи')) 
+            reply_keyboard.insert(KeyboardButton('История задач'))
+            reply_keyboard.add(KeyboardButton('Настройки')) 
+            reply_keyboard.insert(KeyboardButton('Помощь')) 
+        elif db_user.status == "representative":
+            reply_keyboard.add(KeyboardButton('Добавить задачу')) 
+            reply_keyboard.add(KeyboardButton('Текущие задачи')) 
+            reply_keyboard.insert(KeyboardButton('История задач')) 
+            reply_keyboard.add(KeyboardButton('Помощь')) 
     else:
-
-        reply_keyboard.add(KeyboardButton('Помощь')) 
+        reply_keyboard.add(KeyboardButton('Зарегестрироваться')) 
+        reply_keyboard.insert(KeyboardButton('Помощь')) 
     await message.answer(res_dict["start"], parse_mode="html", reply_markup=reply_keyboard)
     # print(message.from_user.get_mention(as_html=True))
     
