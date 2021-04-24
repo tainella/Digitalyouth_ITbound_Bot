@@ -177,9 +177,9 @@ def add_moderator(user):
 	if not user.moderator:
 		new_moder = Moderator(user)
 		Session.add(new_moder)
-		Session.commit()
 		logging.info(f"Юзер стал модератором")
 		user.status = "moderator"
+        Session.commit()
 		return new_moder
 	else:
 		raise Exception("Ошибка, юзер уже является модератором")
@@ -189,9 +189,9 @@ def add_representative(user):
 	if not user.representative:
 		new_representative = Representative(user)
 		Session.add(new_representative)
-		Session.commit()
 		logging.info(f"Юзер стал представителем")
 		user.status = "representative"
+        Session.commit()
 		return new_representative
 	else:
 		raise Exception("Ошибка, юзер уже является представителем")
