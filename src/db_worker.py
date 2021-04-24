@@ -42,8 +42,8 @@ class SpheresToSpecialists(db):
 	spheres = relationship("Sphere", backref = backref("spheres_specialists"))	
 	specialist = relationship("Specialist", back_populates = "spheres")	
 
-	def __init__(self, specialist=None, sphere=None):
-			self.sphere = sphere
+	def __init__(self, specialist=None, spheres=None):
+			self.spheres = spheres
 			self.specialist = specialist
 
 class Sphere(db):
@@ -210,7 +210,7 @@ def add_task(name, description, representative, spheres: list = None):
         new_task = Task(name, description, representative)
         for sphere in spheres_db:
             assosiation = SpheresToTasks()
-            assosiation.sphere = sphere
+            assosiation.spheres = sphere
             Session.add(assosiation)
             Session.commit()
             new_task.spheres.append(assosiation)
@@ -234,14 +234,14 @@ def add_spheres_global(spheres):
 	Session.commit()
 
 # # setting
-# def set_status(telegram_id, st): #st = wish_m, wish_r, m, r, s, blocked
-# 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-# 	if user == None:
-# 		return False #returns Boolean
-# 	else: 
-# 		user.status = st
-# 		Session.commit()
-# 		return True
+def set_status(telegram_id, st): #st = wish_m, wish_r, m, r, s, blocked
+    user = Session.query(User).filter_by(telegram_id=telegram_id).first()
+    if user == None:
+        return False #returns Boolean
+    else:
+        user.status = st
+        Session.commit()
+        return True
 
 # def change_spheres(telegram_id, spheres):
 # 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
@@ -320,7 +320,11 @@ if __name__ == '__main__':
     #add_representative(user)
     repr_ = get_user(10).representative
     add_spheres_global(["МЛ", "Разработка ботов", "Дизайн"])
-    task = add_task("Купить пиво", "Сходить в магаз и купить пиво", repr_, ["МЛ", "Дизайн"])
-    task1 = add_task("Купить пиво", "Сходить в магаз и купить пиво", repr_, ["МЛ", "Дизайн"])
-    print(task.spheres[0].spheres)
+    task = add_task("Купить мыло", "Сходить в магаз и купить пиво", repr_, ["МЛ", "Дизайн"])
+    task1 = Session.query(Task).filter_by(name="Купить мыло").first()
+    if task1 == None:
+        print("nope")
+    else:
+        for i in task1.spheres:
+            print(i.spheres.name)
     pass
