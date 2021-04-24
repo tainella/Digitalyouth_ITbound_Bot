@@ -243,20 +243,38 @@ def set_status(telegram_id, st): #st = wish_m, wish_r, m, r, s, blocked
         Session.commit()
         return True
 
-# def change_spheres(telegram_id, spheres):
-# 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-# 	if user == None:
-# 		return False #returns Boolean
-# 	else: 
-# 		user.interests = []
-# 		for r in spheres:
-# 			sphere = Sphere(name = r)
-# 			user.interests.append(sphere)
-# 		Session.commit()
-# 		return True
+def change_spheres(telegram_id, spheres):
+    user = Session.query(User).filter_by(telegram_id=telegram_id).first()
+    if user == None:
+        raise Exception("Ошибка, юзера {telegram_id} не существует")
+    else:
+        if user.specialist == None:
+            raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
+        interests = []
+        for r in spheres:
+            t = Session.query(Sphere).filter_by(name=r).first()
+            if t is None:
+                raise Exception(f'Сфера "{sphere}" не существует')
+            else:
+                interests.append(t)
+        spec = user.specialist
+        spec.spheres = []
+        for sphere in interests:
+            assosiation = SpheresToSpecialists()
+            assosiation.spheres = sphere
+            Session.add(assosiation)
+            Session.commit()
+            spec.spheres.append(assosiation)
+        Session.commit()
+        return True
 
-# def change_subscribe(telegram_id, mode):
-# 	user = Session.query(Specialist).filter_by(subscribe=mode).first()
+def change_subscribe(telegram_id, mode):
+    user = Session.query(Specialist).filter_by(subscribe=mode).first()
+    if user == None:
+        raise Exception("Ошибка, юзера {telegram_id} не существует")
+    else:
+        user.mode = mode
+        Session.commit()
 
 # getting
 def get_user(telegram_id):
@@ -264,9 +282,18 @@ def get_user(telegram_id):
 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
 	return user if user is not None else False
 
-# def get_sphere(telegram_id):
-# 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-# 	return user.spheres
+def get_spesialist_spheres(telegram_id):
+    user = Session.query(User).filter_by(telegram_id=telegram_id).first()
+    if user == None:
+        raise Exception("Ошибка, юзера {telegram_id} не существует")
+    else:
+        if user.specialist == None:
+            raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
+        sp_sh = user.specialist.spheres
+        y = []
+        for i in sp_sh:
+            y.append(i.spheres.name)
+        return y
 
 def get_all_interests():
     list = Session.query(Sphere).all()
@@ -327,4 +354,11 @@ if __name__ == '__main__':
     else:
         for i in task1.spheres:
             print(i.spheres.name)
+    #user1 = add_user("44", "специалист_kek")
+    #add_specialist(user1)
+    print('-----')
+    change_spheres("44", ["Дизайн", "Разработка ботов", "МЛ"])
+    list = get_spesialist_spheres("44")
+    for i in list:
+        print(i)
     pass
