@@ -334,22 +334,22 @@ def get_user_status(telegram_id):
     else:
         return user.status
 
-def get_current_tasks_for_spec(telegram_id):
-    user = Session.query(User).filter_by(telegram_id = telegram_id).first()
-    if user == None:
-        raise Exception("Ошибка, юзера {telegram_id} не существует")
-    if user.specialist == None:
-        raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
-    tasks = user.specialist.tasks
+def get_tasks_for_user(user, type_of_user, task_status):
+    if type_of_user == 'specialist':
+        if user.specialist == None:
+            raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
+        tasks = user.specialist.tasks
+    elif type_of_user == 'representative':
+        if user.specialist == None:
+            raise Exception("Ошибка, юзер {telegram_id} не является представителем")
+        tasks = user.representative.tasks
+    else:
+        raise Exception("Ошибка, юзер {telegram_id} не является представителем или специалистом")
     curr = []
     for task in tasks:
-        if task.status == 'in_work':
+        if task.status == task_status:
             curr.append(task)
     return curr
-
-# def get_current_tasks_for_represen(telegram_id):
-# 	list = Session.query(Task).filter_by(represen_id = telegram_id).filter_by(status = 'worked').all()
-# 	return list
 
 # def get_history_tasks_for_spec(telegram_id):
 # 	list = Session.query(Task).filter_by(specialist_id = telegram_id).filter_by(status = 'closed').all()
@@ -364,10 +364,10 @@ def get_current_tasks_for_spec(telegram_id):
 
 if __name__ == '__main__':
 	pass
-	user = get_user(418878871)
+    #user = get_user(418878871)
     #print(user.status)
 	# user = add_user(418878871, "@teadove", "Петер")
-	add_specialist(user)
+    #add_specialist(user)
 	#user = add_user(10, "представитель_kek")
 	#add_representative(user)
 	# repr_ = get_user(10).representative
