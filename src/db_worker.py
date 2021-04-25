@@ -364,7 +364,7 @@ def get_all_interests():
 
 
 def get_opened_taskes(spheres):
-    opened_taskes = Session.query(Task).filter_by(status = 'open').all()
+    opened_taskes = Session.query(Task).filter_by(status = 'awaiting_specialist').all()
     req_tasks = [] 
     for task in opened_taskes:
         common = [d for d in spheres if d in task.spheres]
@@ -374,18 +374,18 @@ def get_opened_taskes(spheres):
 	
 
 def get_unchecked_taskes():
-	unchecked_taskes = Session.query(Task).filter_by(status = 'check').all()
+	unchecked_taskes = Session.query(Task).filter_by(status = 'awaiting_confirmation').all()
 	return unchecked_taskes
 
 
 # TODO поменять на другой статус и утвердить статусы
 def get_for_check_represen_users():
-	list_ = Session.query(User).filter_by(status = 'wish_r').all()
+	list_ = Session.query(User).filter_by(status = 'wish_rerpre').all()
 	return list_
 
 # TODO поменять на другой статус и утвердить статусы
 def get_for_check_moder_users():
-	list_ = Session.query(User).filter_by(status = 'wish_m').all()
+	list_ = Session.query(User).filter_by(status = 'wish_moder').all()
 	return list_
 
 
