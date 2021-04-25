@@ -91,6 +91,16 @@ async def send(message: types.Message):
     await message.answer(res_dict["start"], parse_mode="html", reply_markup=reply_keyboard)
     # print(message.from_user.get_mention(as_html=True))
     
+# TODO нормальное info
+@dp.message_handler(commands = "info", state=None)
+async def send(message: types.Message):
+    await message.answer(res_dict["info"], parse_mode="html")
+
+# TODO нормальное contacts
+@dp.message_handler(commands = "contacts", state=None)
+async def send(message: types.Message):
+    await message.answer(res_dict["contacts"], parse_mode="html")
+
 
 @dp.message_handler(state='*', commands='/cancel')
 @dp.message_handler(Text(equals='отмена', ignore_case=True), state='*')
@@ -142,11 +152,11 @@ async def send(message: types.Message, state: FSMContext):
         if command == "Помощь":
             await message.answer(res_dict["help_specialist"], parse_mode="html")
         elif command == "Список доступных задач":
-            pass
-        elif command == "Текущие задачи":
-            pass
+            await specialist_handler.available_tasks(db_user, message, state)
         elif command == "История задач":
-            pass
+            await specialist_handler.tasks_history(db_user, message, state)
+        elif command == "Текущие задачи":
+            await specialist_handler.tasks_current(db_user, message, state)
         elif command == "Профиль":
             await specialist_handler.send_profile(db_user, message, state)
     elif db_user.status == "representative":
@@ -161,12 +171,13 @@ async def send(message: types.Message, state: FSMContext):
             await representative_handler.tasks_current(db_user, message, state)
         elif command == "Профиль":
             await representative_handler.send_profile(db_user, message, state)
-    else:
+    elif db_user.status == None:
         if command == "Помощь":
             await message.answer(res_dict["help_nobody"], parse_mode="html")
         elif command == "Зарегистрироваться":
             await message.answer("Введите ФИО", parse_mode="html", reply_markup=registration.generate_inline_keyboard_for_registration_start())
             await Registration.fullname.set()
+
 # Конец блока для всех
 # Блок обработки Представителя
 
@@ -250,7 +261,7 @@ async def send(update, state: FSMContext):
 
             await CreateTask.next()
             await message.answer("Введите <b>описание задачи</b>\n(не более 2000 символов)", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
-    
+
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=CreateTask.done)
 @dp.message_handler(state=CreateTask.description)
@@ -280,7 +291,7 @@ async def send(update, state: FSMContext):
             await message.answer("Выберите сферы разработки", reply_markup=await representative_handler.generate_reply_keyboard_for_tasks_spheres(state))
 
 
-# Конец блока Представителя
+# Конец блока Представителя 
 # Блок обработки колбеков от всех 
 
 @dp.callback_query_handler(state='*')
@@ -315,10 +326,65 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
             if data[3] == "current":
                 keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
                 keyboard.insert(InlineKeyboardButton('Редактировать', callback_data=f'edit_task {data[1]}'))
-                keyboard.insert(InlineKeyboardButton('Удалить', callback_data=f'delete_task_repr {data[1]}'))
+                keyboard.insert(InlineKeyboardButton('Удалить', callback_data=f'delete_task_repr {data[1]} {data[2]}'))
             await callback_query.message.edit_text(text = utils.generate_task_description(db_worker.get_task(int(data[1]))), parse_mode="html")
             await callback_query.message.edit_reply_markup(reply_markup = keyboard)
-
+        elif command == "delete_task_repr":
+            to_answer = 'Подтвердите удаление задания'
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
+            keyboard.insert(InlineKeyboardButton('Редактировать', callback_data=f'edit_task {data[1]}'))
+            keyboard.insert(InlineKeyboardButton('Удалить!', callback_data=f'delete_task_repr_sure {data[1]} {data[2]}'))
+            await callback_query.message.edit_reply_markup(reply_markup = keyboard)
+        elif command == "delete_task_repr_sure":
+            db_worker.get_task(int(data[1])).status = "canceled_by_represented"
+            db_worker.Session.commit()
+            tasks = db_worker.get_tasks_for_user(db_user,  ['awaiting_confirmation', 'awaiting_specialist', 'in_work'])
+            async with state.proxy() as state_data:
+                state_data['tasks_current'] = tasks
+            to_answer = 'Задание было успешно удалено!'
+            await callback_query.message.edit_text('Текущие задачи, которые Вы добавляли. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+            await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'current'))
+    if db_user.status == "specialist":
+        if command == "cp_tasks":
+            async with state.proxy() as state_data:
+                if f'tasks_{data[2]}' in state_data:
+                    to_answer = ''
+                    if data[2] == 'history' and callback_query.message.text != "История задач, которые Вы выполнили. \nЧтобы получить больше информации, нажмите на задачу.":
+                        await callback_query.message.edit_text('История задач, которые Вы выполнили. \nЧтобы получить больше информации, нажмите на задачу.')
+                    if data[2] == 'current' and callback_query.message.text != "Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.":
+                        await callback_query.message.edit_text('Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+                    await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[1]), data[2]))
+                else:
+                    to_answer = 'Кнопка устарела, начните заного'
+        elif command == "task_info":
+            to_answer = ''
+            keyboard = InlineKeyboardMarkup()
+            if data[3] == "history":
+                keyboard.insert(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} history'))
+            if data[3] == "current":
+                keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
+                keyboard.insert(InlineKeyboardButton('Отказаться от выполнения', callback_data=f'refuse_task {data[1]} {data[2]}'))
+            await callback_query.message.edit_text(text = utils.generate_task_description(db_worker.get_task(int(data[1]))), parse_mode="html")
+            await callback_query.message.edit_reply_markup(reply_markup = keyboard)
+        elif command == "refuse_task":
+            to_answer = 'Подтвердите отказ от выполнения'
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
+            keyboard.insert(InlineKeyboardButton('Отказаться от выполнения!', callback_data=f'refuse_task_sure {data[1]} {data[2]}'))
+            await callback_query.message.edit_reply_markup(reply_markup = keyboard)
+        elif command == "refuse_task_sure":
+            task = db_worker.get_task(int(data[1]))
+            task.status = "awaiting_specialist"
+            task.specialist = None
+            # TODO уведомить как-то представителя 
+            db_worker.Session.commit()
+            tasks = db_worker.get_tasks_for_user(db_user,  ['awaiting_confirmation', 'awaiting_specialist', 'in_work'])
+            async with state.proxy() as state_data:
+                state_data['tasks_current'] = tasks
+            to_answer = 'Вы успешно отказались от задания!'
+            await callback_query.message.edit_text('Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+            await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'current'))
     await callback_query.answer(to_answer)
 
 

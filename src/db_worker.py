@@ -363,7 +363,7 @@ def get_all_interests():
 	return list_
 
 
-def get_opened_taskes(spheres):
+def get_opened_tasks(spheres):
     opened_taskes = Session.query(Task).filter_by(status = 'open').all()
     req_tasks = [] 
     for task in opened_taskes:
@@ -373,7 +373,7 @@ def get_opened_taskes(spheres):
     return req_tasks
 	
 
-def get_unchecked_taskes():
+def get_unchecked_tasks():
 	unchecked_taskes = Session.query(Task).filter_by(status = 'check').all()
 	return unchecked_taskes
 
@@ -429,4 +429,6 @@ if __name__ == '__main__':
     # add_spheres_global(["МЛ", "Написание текстов", "Бекенд"])   
     # print(get_all_interests())
     # add_representative(get_user(1409549287))
+    # user = get_user(418878871)
+    # set_spesialist_spheres(user, ["МЛ", 'Разработка ботов', 'Бекенд'])
     pass
