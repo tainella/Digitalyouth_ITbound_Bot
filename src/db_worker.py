@@ -284,6 +284,10 @@ def get_user(telegram_id):
 	user = Session.query(User).filter_by(telegram_id=telegram_id).first()
 	return user if user is not None else False
 
+def get_task(name):
+    task = Session.query(Task).filter_by(name = name).first()
+    return task
+
 def get_spesialist_spheres(user):
     user = Session.query(User).filter_by(telegram_id=telegram_id).first()
     if user.specialist == None:
@@ -333,34 +337,20 @@ def get_tasks_for_user(user, type_of_user, task_status):
             curr.append(task)
     return curr
 
+def get_users_for_notification(task): #после прохождения задачей модерации
+    users_for_notification = []
+    all_specialists = Session.query(User).filter(User.specialist != None).all()
+    for spec in all_specialists:
+        common = [d for d in spec.specialist.spheres if d in task.spheres]
+        if common != None:
+            users_for_notification.append(spec)
+    return users_for_notification
+
 
 if __name__ == '__main__':
-	pass
-    #user = get_user(418878871)
-    #print(user.status)
-	# user = add_user(418878871, "@teadove", "Петер")
-    #add_specialist(user)
-	#user = add_user(10, "представитель_kek")
-	#add_representative(user)
-	# repr_ = get_user(10).representative
-	# add_spheres_global(["МЛ", "Разработка ботов", "Дизайн"])
-	# task = add_task("Купить мыло", "Сходить в магаз и купить пиво", repr_, ["МЛ", "Дизайн"])
-	# task1 = Session.query(Task).filter_by(name="Купить мыло").first()
-	# if task1 == None:
-	# 	print("nope")
-	# else:
-	# 	for i in task1.spheres:
-	# 		print(i.spheres.name)
-	# #user1 = add_user("44", "специалист_kek")
-	# #add_specialist(user1)
-	# print('-----')
-	# user = add_user(44, "kek")
-	# add_specialist(user)
-	# set_spesialist_spheres("44", ["Дизайн", "Разработка ботов", "МЛ"])
-	# list = get_spesialist_spheres("44")
-	# for i in list:
-	# 	print(i)
-	# list = get_unchecked_taskes()
-	# for i in list:
-	# 	print(i)
-	# pass
+    #set_task_status("Купить мыло", "open")
+    #task = get_task("Купить мыло")
+    #users = get_users_for_notification(task)
+    #for i in users:
+    #print(i.telegram_id)
+    pass
