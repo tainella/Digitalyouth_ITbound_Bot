@@ -75,7 +75,7 @@ async def send(message: types.Message):
             reply_keyboard.insert(KeyboardButton('История задач')) 
             reply_keyboard.add(KeyboardButton('Помощь')) 
     else:
-        reply_keyboard.add(KeyboardButton('Зарегестрироваться')) 
+        reply_keyboard.add(KeyboardButton('Зарегистрироваться')) 
         reply_keyboard.insert(KeyboardButton('Помощь')) 
     await message.answer(res_dict["start"], parse_mode="html", reply_markup=reply_keyboard)
     # print(message.from_user.get_mention(as_html=True))
