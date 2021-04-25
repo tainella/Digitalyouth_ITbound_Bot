@@ -8,10 +8,10 @@ from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-from bot import res_dict
+from utils import res_dict
 import db_worker
 
-async def send_profile_specialist(db_user, message: types.Message, state: FSMContext):
+async def send_profile(db_user, message: types.Message, state: FSMContext):
     to_send = res_dict['profile_specialist'].format(db_user.real_fullname, db_user.phone, ', '.join(db_worker.get_spesialist_spheres(db_user)),
                         "Подписан" if db_user.specialist.subsribed else "Не подписан", None, None)
 

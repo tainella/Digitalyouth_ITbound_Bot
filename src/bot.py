@@ -14,14 +14,17 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 
 import utils
 import db_worker
-import specialist_handler
+import specialist_handler, representative_handler
+from utils import res_dict
 
 BASE = Path(os.path.realpath(__file__))
 os.chdir(BASE.parent)
 
 config = configparser.ConfigParser()
 config.read("secret_data/config.ini")
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%y-%m-%d %H:%M')
+
 bot = Bot(token=config['credentials']['telegram-api'])
 storage = MemoryStorage() # TODO перейти на redis storage
 dp = Dispatcher(bot, storage=storage)
@@ -37,12 +40,6 @@ class CreateTask(StatesGroup):
     done = State()
 
 
-# Из res создаём словарь строк для UI
-def res_(filename: str):
-    return open(filename, 'r').read()
-res_dict = {}
-for file in Path("res").iterdir():
-    res_dict[file.stem] = res_(file)
 
 def get_status(chat_id: int):
     # TODO получать статус из бд
@@ -56,13 +53,10 @@ async def send(message: types.Message):
     Все:
     Сообщение приветствия + генерация reply клавы
     """
-    # logging.info("Кек")
     db_user = db_worker.get_user(message.from_user.id)
     if not db_user:
         db_user = db_worker.add_user(message.from_user.id, message.from_user.full_name, message.from_user.username)
-    logging.info(db_user)
-    # logging.info("Hi!")
-    # return 
+    # logging.info(db_user)
     reply_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     # TODO добавить эмодзи
     if db_user.status == "moderator":
@@ -122,40 +116,46 @@ async def send(message: types.Message, state: FSMContext):
     Обработка сообщений из reply клавиатуры
     """
     db_user = db_worker.get_user(message.from_user.id)
+    if not db_user:
+        db_user = db_worker.add_user(message.from_user.id, message.from_user.full_name, message.from_user.username)
     command = message.text
-    if db_user:
-        if db_user.status == "moderator":
-            if command == "Помощь":
-                await message.answer(res_dict["help_moderator"], parse_mode="html")
-            elif command == "Начать модерацию": 
-                pass
-        elif db_user.status == "specialist":
-            if command == "Помощь":
-                await message.answer(res_dict["help_specialist"], parse_mode="html")
-            elif command == "Список доступных задач":
-                pass
-            elif command == "Текущие задачи":
-                pass
-            elif command == "История задач":
-                pass
-            # elif command == "Настройки":
-            #     pass
-            elif command == "Профиль":
-                await specialist_handler.send_profile_specialist(db_user, message, state)
-        elif db_user.status == "representative":
-            if command == "Помощь":
-                await message.answer(res_dict["help_representative"], parse_mode="html")
-            elif command == "Добавить задачу":
-                await message.answer("Введите <b>название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
-                await CreateTask.name.set()
-            elif command == "История задач":
-                pass
-            elif command == "Текущие задачи":
-                pass
+    if command not in ["Помощь", "Начать модерацию", "Список доступных задач", "Текущие задачи", "История задач", "Профиль", "Добавить задачу", "Зарегистрироваться"]:
+        await message.answer("Ошибка, команда не найдена")
+    if db_user.status == "moderator":
+        if command == "Помощь":
+            await message.answer(res_dict["help_moderator"], parse_mode="html")
+        elif command == "Начать модерацию": 
+            pass
+        elif command == "Профиль":
+            pass
+            # await specialist_handler.send_profile_specialist(db_user, message, state)
+    elif db_user.status == "specialist":
+        if command == "Помощь":
+            await message.answer(res_dict["help_specialist"], parse_mode="html")
+        elif command == "Список доступных задач":
+            pass
+        elif command == "Текущие задачи":
+            pass
+        elif command == "История задач":
+            pass
+        elif command == "Профиль":
+            await specialist_handler.send_profile(db_user, message, state)
+    elif db_user.status == "representative":
+        if command == "Помощь":
+            await message.answer(res_dict["help_representative"], parse_mode="html")
+        elif command == "Добавить задачу":
+            await message.answer("Введите <b>название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks_start())
+            await CreateTask.name.set()
+        elif command == "История задач":
+            await representative_handler.tasks_history(db_user, message, state)
+        elif command == "Текущие задачи":
+            await representative_handler.tasks_current(db_user, message, state)
+        elif command == "Профиль":
+            await representative_handler.send_profile(db_user, message, state)
     else:
         if command == "Помощь":
             await message.answer(res_dict["help_nobody"], parse_mode="html")
-        elif command == "Зарегестрироваться":
+        elif command == "Зарегистрироваться":
             pass
 # Конец блока для всех
 # Блок обработки Представителя
@@ -171,7 +171,7 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
         to_return += f"<i>Описание:</i>\n{data['description']}\n\n"
         to_return += f"<i>Сферы разработки:</i>\n{', '.join(filter(lambda x: data['spheres'][x], data['spheres']))}"
     await callback_query.message.edit_text(to_return, parse_mode="html")
-    await callback_query.message.edit_reply_markup(reply_markup=utils.generate_reply_keyboard_for_tasks_done()) 
+    await callback_query.message.edit_reply_markup(reply_markup=representative_handler.generate_reply_keyboard_for_tasks_done()) 
     await CreateTask.next()
     await callback_query.answer()
 
@@ -186,6 +186,7 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
         data['spheres'] = list(filter(lambda x: data['spheres'][x], data['spheres']))
         await callback_query.message.answer(f'Задание <i>"{data["name"]}"</i> было отправлено на проверку модератору.', parse_mode="html")
         # TODO отсылать в БД
+        db_worker.add_task(data['name'], data['description'], db_worker.get_user(callback_query.from_user.id).representative, data['spheres'])
         await callback_query.answer()
     await state.finish()    
 
@@ -198,7 +199,7 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
     """
     async with state.proxy() as data:
         data['spheres'][callback_query.data] = not data['spheres'][callback_query.data] 
-    await callback_query.message.edit_reply_markup(await utils.generate_reply_keyboard_for_tasks_spheres(state)) 
+    await callback_query.message.edit_reply_markup(await representative_handler.generate_reply_keyboard_for_tasks_spheres(state)) 
     await callback_query.answer()
 
     
@@ -211,7 +212,7 @@ async def send(callback_query: types.CallbackQuery, state: FSMContext):
     await callback_query.answer()
     await callback_query.message.delete()
     await CreateTask.name.set()
-    await callback_query.message.answer("Введите <b>название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
+    await callback_query.message.answer("Введите <b>название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks_start())
 
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=CreateTask.spheres)
@@ -226,7 +227,7 @@ async def send(update, state: FSMContext):
         await update.answer()
         await update.message.delete()
         await CreateTask.description.set()
-        await message.answer("Введите <b>описание задачи</b>\n(не более 2000 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks())
+        await message.answer("Введите <b>описание задачи</b>\n(не более 2000 символов)", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
     else:
         message = update
         if len(message.text) > 50:
@@ -238,7 +239,7 @@ async def send(update, state: FSMContext):
                 data['name'] = message.text
 
             await CreateTask.next()
-            await message.answer("Введите <b>описание задачи</b>\n(не более 2000 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks())
+            await message.answer("Введите <b>описание задачи</b>\n(не более 2000 символов)", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
     
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=CreateTask.done)
@@ -253,20 +254,20 @@ async def send(update, state: FSMContext):
         await update.answer()
         await update.message.delete()
         await CreateTask.spheres.set()
-        await message.answer("Выберите сферы разработки", reply_markup=await utils.generate_reply_keyboard_for_tasks_spheres(state))
+        await message.answer("Выберите сферы разработки", reply_markup=await representative_handler.generate_reply_keyboard_for_tasks_spheres(state))
     else:
         message = update
         if len(message.text) > 2000:
-            await message.answer("Ошибка, описание должно быть не более 2000 символов.\n(Введено {len(message.text)} символов)\n\nВведите <b>другое описание задачи</b>\n(не более 3000 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks())
+            await message.answer("Ошибка, описание должно быть не более 2000 символов.\n(Введено {len(message.text)} символов)\n\nВведите <b>другое описание задачи</b>\n(не более 3000 символов)", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
         elif message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
-            await message.answer('Ошибка, неправильное описание.\n\nВведите <b>другое описание задачи</b>\n(не более 2000 символов)\nДля отмены создания задания, нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks())
+            await message.answer('Ошибка, неправильное описание.\n\nВведите <b>другое описание задачи</b>\n(не более 2000 символов)\nДля отмены создания задания, нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
         else:
             async with state.proxy() as data:
                 data['description'] = message.text
-                data['spheres'] = {interest: False for interest in utils.get_all_interests()}
+                data['spheres'] = {interest: False for interest in db_worker.get_all_interests()}
 
             await CreateTask.next()
-            await message.answer("Выберите сферы разработки", reply_markup=await utils.generate_reply_keyboard_for_tasks_spheres(state))
+            await message.answer("Выберите сферы разработки", reply_markup=await representative_handler.generate_reply_keyboard_for_tasks_spheres(state))
 
 
 # Конец блока Представителя
@@ -276,10 +277,39 @@ async def send(update, state: FSMContext):
 async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
     """
     Все
-    Обработка несуществуещего колбека
+    Обработка колбеков без КА
     """
-    await callback_query.answer("Ошибка, начните заного")
+    db_user = db_worker.get_user(callback_query.from_user.id)
+    if not db_user:
+        db_user = db_worker.add_user(callback_query.from_user.id, callback_query.from_user.full_name, callback_query.from_user.username)
+    data = callback_query.data.split()
+    command = data[0]
+    to_answer = 'Ошибка, начните заного'
+    if db_user.status == "representative": 
+        if command == "cp_tasks":
+            async with state.proxy() as state_data:
+                if f'tasks_{data[2]}' in state_data:
+                    to_answer = ''
+                    if data[2] == 'history' and callback_query.message.text != "История задач, которые Вы добавляли. \nЧтобы получить больше информации, нажмите на задачу.":
+                        await callback_query.message.edit_text('История задач, которые Вы добавляли. \nЧтобы получить больше информации, нажмите на задачу.')
+                    if data[2] == 'current' and callback_query.message.text != "Текущие задачи, которые Вы добавляли. \nЧтобы получить больше информации и редактировать, нажмите на задачу.":
+                        await callback_query.message.edit_text('Текущие задачи, которые Вы добавляли. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+                    await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[1]), data[2]))
+                else:
+                    to_answer = 'Кнопка устарела, начните заного'
+        elif command == "task_info":
+            to_answer = ''
+            keyboard = InlineKeyboardMarkup()
+            if data[3] == "history":
+                keyboard.insert(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} history'))
+            if data[3] == "current":
+                keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
+                keyboard.insert(InlineKeyboardButton('Редактировать', callback_data=f'edit_task {data[1]}'))
+            await callback_query.message.edit_text(text = utils.generate_task_description(db_worker.get_task(int(data[1]))), parse_mode="html")
+            await callback_query.message.edit_reply_markup(reply_markup = keyboard)
+
+    await callback_query.answer(to_answer)
 
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=False)
+    executor.start_polling(dp, skip_updates=True)

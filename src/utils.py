@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from aiogram.types import ReplyKeyboardRemove, \
     ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
@@ -5,43 +7,35 @@ from aiogram.dispatcher import FSMContext
 
 import db_worker
 
-def generate_reply_keyboard_for_tasks_start():
-    keyboard = InlineKeyboardMarkup()
-    keyboard.insert(InlineKeyboardButton('Отмена', callback_data='cancel'))
-    return keyboard
 
-def generate_reply_keyboard_for_tasks():
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton('Назад', callback_data='back'))
-    keyboard.insert(InlineKeyboardButton('Отмена', callback_data='cancel'))
-    return keyboard
+# Из res создаём словарь строк для UI
+def res_(filename: str):
+    return open(filename, 'r').read()
+res_dict = {}
+for file in Path("res").iterdir():
+    res_dict[file.stem] = res_(file)
 
-def generate_reply_keyboard_for_tasks_done():
-    keyboard = InlineKeyboardMarkup()
-    keyboard.add(InlineKeyboardButton('Назад', callback_data='back'))
-    keyboard.insert(InlineKeyboardButton('Отмена', callback_data='cancel'))
-    keyboard.insert(InlineKeyboardButton('Подтверждаю', callback_data='done'))
-    return keyboard
+def generate_task_description(task) -> str:
+    status_str = ''
+    if task.status == "awaiting_confirmation":
+        status_str = "Ожидает подтверждения модерацией"
+    elif task.status == "awaiting_specialist":
+        status_str = "Ожидает взятия исполнителем"
+    elif task.status == "in_work":
+        status_str = "Выполняется"
+    elif task.status == "closed_with_success":
+        status_str = "Выполнен удовлетворительно"
+    elif task.status == "canceled_by_represented":
+        status_str = "Закрыт заказчиком"
+    elif task.status == "closed_by_other_reason":
+        status_str = "Закрыт"
+    specialist_str = task.specialist.real_fullname if task.specialist is not None else "Не назначен"
 
-def get_all_interests():
-    # TODO получать список из бд
-    return db_worker.get_all_interests()
-    # return ["Дизайн", "Разработка ботов", "Вёрстка сайтов", "CRM", "Базы данных", "Аналитика", 'Машинное обучение'] 
-
-# ☑️ ☐
-async def generate_reply_keyboard_for_tasks_spheres(state: FSMContext):
-    keyboard = InlineKeyboardMarkup()
-    even = True
-    async with state.proxy() as data:
-        spheres = data['spheres']
-        for key in spheres:
-            checked = "☑️ " if spheres[key] else '☐ ' # TODO поискать другие эмодзи
-            if even:
-                keyboard.add(InlineKeyboardButton(checked + key, callback_data=key))
-            else:
-                keyboard.insert(InlineKeyboardButton(checked + key, callback_data=key))
-            even = not even 
-    keyboard.add(InlineKeyboardButton('Назад', callback_data='back'))
-    keyboard.insert(InlineKeyboardButton('Отмена', callback_data='cancel'))
-    keyboard.insert(InlineKeyboardButton('Подтвердить', callback_data='done'))
-    return keyboard
+    to_return = res_dict['task_info'].format(task.name,
+        task.description,
+        ', '.join(task.spheres),
+        status_str,
+        task.representative.user.real_fullname,
+        specialist_str,
+        task.time_of_creation)
+    return to_return
