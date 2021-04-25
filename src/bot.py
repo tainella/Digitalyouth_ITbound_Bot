@@ -21,7 +21,7 @@ os.chdir(BASE.parent)
 
 config = configparser.ConfigParser()
 config.read("secret_data/config.ini")
-logging.basicConfig(level=logging.WARNING, format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%y-%m-%d %H:%M')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s', datefmt='%y-%m-%d %H:%M')
 bot = Bot(token=config['credentials']['telegram-api'])
 storage = MemoryStorage() # TODO перейти на redis storage
 dp = Dispatcher(bot, storage=storage)
@@ -56,28 +56,32 @@ async def send(message: types.Message):
     Все:
     Сообщение приветствия + генерация reply клавы
     """
+    # logging.info("Кек")
     db_user = db_worker.get_user(message.from_user.id)
-    
+    if not db_user:
+        db_user = db_worker.add_user(message.from_user.id, message.from_user.full_name, message.from_user.username)
+    logging.info(db_user)
+    # logging.info("Hi!")
+    # return 
     reply_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-    if db_user:
-        # TODO добавить эмодзи
-        if db_user.status == "moderator":
-            reply_keyboard.add(KeyboardButton('Начать модерацию')) 
-            reply_keyboard.insert(KeyboardButton('Профиль'))
-            reply_keyboard.insert(KeyboardButton('Помощь')) 
-        elif db_user.status == "specialist":
-            reply_keyboard.add(KeyboardButton('Список доступных задач')) 
-            reply_keyboard.add(KeyboardButton('Текущие задачи')) 
-            reply_keyboard.insert(KeyboardButton('История задач'))
-            reply_keyboard.add(KeyboardButton('Настройки')) 
-            reply_keyboard.insert(KeyboardButton('Профиль'))
-            reply_keyboard.insert(KeyboardButton('Помощь')) 
-        elif db_user.status == "representative":
-            reply_keyboard.add(KeyboardButton('Добавить задачу')) 
-            reply_keyboard.add(KeyboardButton('Текущие задачи')) 
-            reply_keyboard.insert(KeyboardButton('История задач')) 
-            reply_keyboard.insert(KeyboardButton('Профиль'))
-            reply_keyboard.add(KeyboardButton('Помощь')) 
+    # TODO добавить эмодзи
+    if db_user.status == "moderator":
+        reply_keyboard.add(KeyboardButton('Начать модерацию')) 
+        reply_keyboard.insert(KeyboardButton('Профиль'))
+        reply_keyboard.insert(KeyboardButton('Помощь')) 
+    elif db_user.status == "specialist":
+        reply_keyboard.add(KeyboardButton('Список доступных задач')) 
+        reply_keyboard.add(KeyboardButton('Текущие задачи')) 
+        reply_keyboard.insert(KeyboardButton('История задач'))
+        # reply_keyboard.add(KeyboardButton('Настройки')) 
+        reply_keyboard.add(KeyboardButton('Профиль'))
+        reply_keyboard.insert(KeyboardButton('Помощь')) 
+    elif db_user.status == "representative":
+        reply_keyboard.add(KeyboardButton('Добавить задачу')) 
+        reply_keyboard.add(KeyboardButton('Текущие задачи')) 
+        reply_keyboard.insert(KeyboardButton('История задач')) 
+        reply_keyboard.add(KeyboardButton('Профиль'))
+        reply_keyboard.insert(KeyboardButton('Помощь')) 
     else:
         reply_keyboard.add(KeyboardButton('Зарегистрироваться')) 
         reply_keyboard.insert(KeyboardButton('Помощь')) 
@@ -134,8 +138,8 @@ async def send(message: types.Message, state: FSMContext):
                 pass
             elif command == "История задач":
                 pass
-            elif command == "Настройки":
-                pass
+            # elif command == "Настройки":
+            #     pass
             elif command == "Профиль":
                 await specialist_handler.send_profile_specialist(db_user, message, state)
         elif db_user.status == "representative":
@@ -277,6 +281,5 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
     await callback_query.answer("Ошибка, начните заного")
 
 
-
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    executor.start_polling(dp, skip_updates=False)

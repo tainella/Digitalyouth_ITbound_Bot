@@ -47,16 +47,16 @@ class SpheresToSpecialists(db):
 			self.specialist = specialist
 
 class Sphere(db):
-    __tablename__ = 'sphere'
-    name = Column(String, primary_key=True)
-    specialists = association_proxy("spheres_specialists", "specialists")
-    tasks = association_proxy("spheres_tasks", "task")
-    status = Column(Boolean) #false недоступно, true доступно
-    def __init__(self, name):
-        self.name = name
-        self.tasks = []
-        self.specialists = []
-        self.status = True
+	__tablename__ = 'sphere'
+	name = Column(String, primary_key=True)
+	specialists = association_proxy("spheres_specialists", "specialists")
+	tasks = association_proxy("spheres_tasks", "task")
+	status = Column(Boolean) #false недоступно, true доступно
+	def __init__(self, name):
+		self.name = name
+		self.tasks = []
+		self.specialists = []
+		self.status = True
 
 
 class Task(db):
@@ -124,25 +124,25 @@ class Representative(db):
 
 
 class User(db):
-    __tablename__ = 'user'
-    telegram_id = Column(String, primary_key=True)
-    username = Column(String, nullable=True)
-    telegram_fullname = Column(String)
-    real_fullname = Column(String, nullable=True)
-    phone = Column(String, nullable=True)
-    status = Column(String, nullable=True) #open, wish_moder, wish_rerpre, moderator, representative, specialist, blocked
-    moderator = relationship('Moderator', back_populates="user", uselist=False)
-    specialist = relationship('Specialist', back_populates="user", uselist=False)
-    representative = relationship('Representative', back_populates="user", uselist=False)
+	__tablename__ = 'user'
+	telegram_id = Column(String, primary_key=True)
+	username = Column(String, nullable=True)
+	telegram_fullname = Column(String)
+	real_fullname = Column(String, nullable=True)
+	phone = Column(String, nullable=True)
+	status = Column(String, nullable=True) #open, wish_moder, wish_rerpre, moderator, representative, specialist, blocked
+	moderator = relationship('Moderator', back_populates="user", uselist=False)
+	specialist = relationship('Specialist', back_populates="user", uselist=False)
+	representative = relationship('Representative', back_populates="user", uselist=False)
 
-    def __init__(self, telegram_id, telegram_fullname, username=None):
-        self.telegram_id = telegram_id
-        self.username = username
-        self.status = "open"
-        self.telegram_fullname = telegram_fullname
+	def __init__(self, telegram_id, telegram_fullname, username=None):
+		self.telegram_id = telegram_id
+		self.username = username
+		self.status = "open"
+		self.telegram_fullname = telegram_fullname
 
-    def __str__(self):
-        return f"телеграм ID: {self.telegram_id},\tтелеграм никнейм: {self.telegram_fullname},\tтелеграм юзернейм: {self.username}"
+	def __str__(self):
+		return f"телеграм ID: {self.telegram_id},\tтелеграм никнейм: {self.telegram_fullname},\tтелеграм юзернейм: {self.username}"
 
 db.metadata.create_all(engine)
 
@@ -163,79 +163,80 @@ def add_user(telegram_id: str, telegram_fullname: str, username: str = None):
 		return new_user
 
 def add_specialist(user):
-    if not user.specialist:
-        new_spec = Specialist(user)
-        Session.add(new_spec)
-        logging.info(f"Юзер стал специалистом")
-        if user.status != "open":
-            if user.status == "moderator":
-                user.moderator = []
-            elif user.status == "representative":
-                user.representative = []
-                #сбросить все текущие задачи
-                drop_current_tasks(user)
-        user.status = "specialist"
-        Session.commit()
-        return new_spec
-    else:
-        raise Exception("Ошибка, юзер уже является специалистом")
+	if not user.specialist:
+		new_spec = Specialist(user)
+		Session.add(new_spec)
+		logging.info(f"Юзер стал специалистом")
+		if user.status != "open":
+			if user.status == "moderator":
+				user.moderator = []
+			elif user.status == "representative":
+				user.representative = []
+				#сбросить все текущие задачи
+				drop_current_tasks(user)
+		user.status = "specialist"
+		Session.commit()
+		return new_spec
+	else:
+		raise Exception("Ошибка, юзер уже является специалистом")
 
 
 def add_moderator(user):
-    if not user.moderator:
-        new_moder = Moderator(user)
-        Session.add(new_moder)
-        logging.info(f"Юзер стал модератором")
-        if user.status == "specialist" or user.status == "representative":
-            drop_current_tasks(user) #сбросить все текущие задачи
-        user.status = "moderator"
-        Session.commit()
-        return new_moder
-    else:
-        raise Exception("Ошибка, юзер уже является модератором")
+	if not user.moderator:
+		new_moder = Moderator(user)
+		Session.add(new_moder)
+		logging.info(f"Юзер стал модератором")
+		if user.status == "specialist" or user.status == "representative":
+			drop_current_tasks(user) #сбросить все текущие задачи
+		user.status = "moderator"
+		Session.commit()
+		return new_moder
+	else:
+		raise Exception("Ошибка, юзер уже является модератором")
 
 
 def add_representative(user):
-    if not user.representative:
-        new_representative = Representative(user)
-        Session.add(new_representative)
-        logging.info(f"Юзер стал представителем")
-        if user.status == "specialist":
-            drop_current_tasks(user) #сбросить все текущие задачи
-        user.status = "representative"
-        Session.commit()
-        return new_representative
-    else:
-        raise Exception("Ошибка, юзер уже является представителем")
+	if not user.representative:
+		new_representative = Representative(user)
+		Session.add(new_representative)
+		logging.info(f"Юзер стал представителем")
+		if user.status == "specialist":
+			drop_current_tasks(user) #сбросить все текущие задачи
+		user.status = "representative"
+		Session.commit()
+		return new_representative
+	else:
+		raise Exception("Ошибка, юзер уже является представителем")
 
 
 def add_task(name, description, representative, spheres: list = None):
-    task = Session.query(Task).filter_by(name=name).first()
-    if task == None:
-        spheres_db = []
-        for sphere in spheres:
-            t = Session.query(Sphere).filter_by(name=sphere).first()
-            if t is None:
-                raise Exception(f'Сфера "{sphere}" не существует')
-            else:
-                if t.status == False:
-                    raise Exception(f'Сфера "{sphere}" не существует')
-                spheres_db.append(t)
-        new_task = Task(name, description, representative)
-        for sphere in spheres_db:
-            assosiation = SpheresToTasks()
-            assosiation.spheres = sphere
-            Session.add(assosiation)
-            Session.commit()
-            new_task.spheres.append(assosiation)
-        new_task.status = 'open'
-        Session.add(new_task)
-        Session.commit()
-        logging.info("Задание создано")
-        task = Session.query(Task).filter_by(name=name).first()
-    else:
-        logging.warning(f'Задание "{name}" уже добавлено')
-    return task
+	task = Session.query(Task).filter_by(name=name).first()
+	if task == None:
+		spheres_db = []
+		for sphere in spheres:
+			t = Session.query(Sphere).filter_by(name=sphere).first()
+			if t is None:
+				raise Exception(f'Сфера "{sphere}" не существует')
+			else:
+				if t.status == False:
+					raise Exception(f'Сфера "{sphere}" не существует')
+				spheres_db.append(t)
+		new_task = Task(name, description, representative)
+		for sphere in spheres_db:
+			assosiation = SpheresToTasks()
+			assosiation.spheres = sphere
+			Session.add(assosiation)
+			Session.commit()
+			new_task.spheres.append(assosiation)
+		new_task.status = 'open'
+		Session.add(new_task)
+		Session.commit()
+		logging.info("Задание создано")
+		task = Session.query(Task).filter_by(name=name).first()
+	else:
+		logging.warning(f'Задание "{name}" уже добавлено')
+	return task
+
 
 def add_spheres_global(spheres):
 	for sphere in spheres:
@@ -244,84 +245,86 @@ def add_spheres_global(spheres):
 			new_sphere = Sphere(sphere)
 			Session.add(new_sphere)
 		else:
-			logging.warning(f'Сфера "{sphere}" уже добавлена')
+			if already_added.status == True:
+				logging.warning(f'Сфера "{sphere}" уже добавлена')
+			else:
+				already_added.status = True
 	Session.commit()
-
 # # setting
 
 def delete_spheres_global(spheres): #выведи предупреждение представителю что все задачи будут сняты
-    for sphere in spheres:
-        already_added = Session.query(Sphere).filter_by(name=sphere).first()
-        if already_added is None:
-            raise Exception(f'Сфера "{sphere}" не существует')
-        else:
-            already_added.status = False
-    Session.commit()
-    #закрыть все задачи под этими сферами
-    all_tasks = Session.query(Task).filter(Task.status != 'closed').all()
-    for task in all_tasks:
-        common = [d for d in spheres if d in task.spheres]
-        if common != None:
-            #if task.status == 'inwork':
-                #ОТПРАВИТЬ ОПОВЕЩЕНИЕ ЧТО ЗАДАЧА СНЯТА
-            task.status = "closed"
-            Session.commit()
-    #удалить у всех специалистов эти сферы из интересов
-    all_specialists = Session.query(User).filter(User.specialist != None).all()
-    for spec in all_specialists:
-        for spec_sphere in spec.spheres:
-            for sphere in spheres:
-                spec_sphere.remove(sphere)
-                #ОТПРАВИТЬ ОПОВЕЩЕНИЕ ЧТО СФЕРА ТЕПЕРЬ НЕДОСТУПНА
-                Session.commit()
+	for sphere in spheres:
+		already_added = Session.query(Sphere).filter_by(name=sphere).first()
+		if already_added is None:
+			raise Exception(f'Сфера "{sphere}" не существует')
+		else:
+			already_added.status = False
+	Session.commit()
+	#закрыть все задачи под этими сферами
+	all_tasks = Session.query(Task).filter(Task.status != 'closed').all()
+	for task in all_tasks:
+		common = [d for d in spheres if d in task.spheres]
+		if common != None:
+			#if task.status == 'inwork':
+				#ОТПРАВИТЬ ОПОВЕЩЕНИЕ ЧТО ЗАДАЧА СНЯТА
+			task.status = "closed"
+			Session.commit()
+	#удалить у всех специалистов эти сферы из интересов
+	all_specialists = Session.query(User).filter(User.specialist != None).all()
+	for spec in all_specialists:
+		for spec_sphere in spec.spheres:
+			for sphere in spheres:
+				spec_sphere.remove(sphere)
+				#ОТПРАВИТЬ ОПОВЕЩЕНИЕ ЧТО СФЕРА ТЕПЕРЬ НЕДОСТУПНА
+				Session.commit()
 
 def drop_current_tasks(user):
-    if user.status == "representative":
-        for task in user.representative.tasks:
-            #if task.status == "in_work":
-                #ОТПРАВИТЬ ОПОВЕЩЕНИЕ
-            task.status = "closed"
-    elif user.status == "specialist":
-        for task in user.specialist.tasks:
-            drop_specialist_task(task)
-        user.specialist.tasks = []
-    else:
-        raise Exception(f'Юзер "{user.telegram_id}" не представитель или специалист')
+	if user.status == "representative":
+		for task in user.representative.tasks:
+			#if task.status == "in_work":
+				#ОТПРАВИТЬ ОПОВЕЩЕНИЕ
+			task.status = "closed"
+	elif user.status == "specialist":
+		for task in user.specialist.tasks:
+			drop_specialist_task(task)
+		user.specialist.tasks = []
+	else:
+		raise Exception(f'Юзер "{user.telegram_id}" не представитель или специалист')
 
 def drop_specialist_task(task):
-    task.status = "open"
-    task.specialist = None
-    Session.commit()
+	task.status = "open"
+	task.specialist = None
+	Session.commit()
 
 def set_status(user, st): #st = wish_m, wish_r, m, r, s, blocked
-    user.status = st
-    Session.commit()
-    return True
+	user.status = st
+	Session.commit()
+	return True
 
 def set_spesialist_spheres(user, spheres):
-    interests = []
-    for r in spheres:
-        t = Session.query(Sphere).filter_by(name=r).first()
-        if t is None:
-            raise Exception(f'Сфера "{sphere}" не существует')
-        else:
-            interests.append(t)
-    spec = user.specialist
-    if spec == None:
-        raise Exception("Ошибка, юзер не является специалистом")
-    spec.spheres = []
-    for sphere in interests:
-        assosiation = SpheresToSpecialists()
-        assosiation.spheres = sphere
-        Session.add(assosiation)
-        Session.commit()
-        spec.spheres.append(assosiation)
-    Session.commit()
-    return True
+	interests = []
+	for r in spheres:
+		t = Session.query(Sphere).filter_by(name=r).first()
+		if t is None:
+			raise Exception(f'Сфера "{sphere}" не существует')
+		else:
+			interests.append(t)
+	spec = user.specialist
+	if spec == None:
+		raise Exception("Ошибка, юзер не является специалистом")
+	spec.spheres = []
+	for sphere in interests:
+		assosiation = SpheresToSpecialists()
+		assosiation.spheres = sphere
+		Session.add(assosiation)
+		Session.commit()
+		spec.spheres.append(assosiation)
+	Session.commit()
+	return True
 
 def set_subscribe(user, mode):
-    user.mode = mode
-    Session.commit()
+	user.mode = mode
+	Session.commit()
 
 def set_task_status(task_name, status):
 	task = Session.query(Task).filter_by(name=task_name).first()
@@ -338,72 +341,81 @@ def get_user(telegram_id):
 	return user if user is not None else False
 
 def get_task(name):
-    task = Session.query(Task).filter_by(name = name).first()
-    return task
+	task = Session.query(Task).filter_by(name = name).first()
+	return task
 
 def get_spesialist_spheres(user):
-    user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-    if user.specialist == None:
-        raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
-    sp_sh = user.specialist.spheres
-    y = []
-    for i in sp_sh:
-        y.append(i.spheres.name)
-    return y
+	# user = Session.query(User).filter_by(telegram_id=telegram_id).first()
+	if user.specialist is None:
+		raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
+	sp_sh = user.specialist.spheres
+	y = []
+	for i in sp_sh:
+		y.append(i.spheres.name)
+	return y
 
 def get_all_interests():
-    list_ = Session.query(Sphere).all()
-    list_ = [sphere.name for sphere in list_]
-    return list_
-	
-# # TODO переделать чтобы работало
+	list_ = Session.query(Sphere).filter_by(status=True).all()
+	list_ = [sphere.name for sphere in list_]
+	return list_
+
+# TODO переделать чтобы работало
 def get_opened_taskes(spheres):
-	opened_taskes = Session.query(Task).filter_by(status = 'open').filter(or_(name == s for s in spheres)).all()
-	return opened_taskes
+    opened_taskes = Session.query(Task).filter_by(status = 'open').all()
+    req_tasks = [] 
+    for task in opened_taskes:
+        common = [d for d in spheres if d in task.spheres]
+        if common is not None:
+            req_tasks.append(task)
+    return req_tasks
 	
 def get_unchecked_taskes():
 	unchecked_taskes = Session.query(Task).filter_by(status = 'check').all()
 	return unchecked_taskes
 
 def get_for_check_represen_users():
-    list = Session.query(User).filter_by(status = 'wish_r').all()
-    return list
+	list = Session.query(User).filter_by(status = 'wish_r').all()
+	return list
 
 def get_for_check_moder_users():
-    list = Session.query(User).filter_by(status = 'wish_m').all()
-    return list
+	list = Session.query(User).filter_by(status = 'wish_m').all()
+	return list
 
 def get_tasks_for_user(user, type_of_user, task_status):
-    if type_of_user == 'specialist':
-        if user.specialist == None:
-            raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
-        tasks = user.specialist.tasks
-    elif type_of_user == 'representative':
-        if user.specialist == None:
-            raise Exception("Ошибка, юзер {telegram_id} не является представителем")
-        tasks = user.representative.tasks
-    else:
-        raise Exception("Ошибка, юзер {telegram_id} не является представителем или специалистом")
-    curr = []
-    for task in tasks:
-        if task.status == task_status:
-            curr.append(task)
-    return curr
+	if type_of_user == 'specialist':
+		if user.specialist == None:
+			raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
+		tasks = user.specialist.tasks
+	elif type_of_user == 'representative':
+		if user.specialist == None:
+			raise Exception("Ошибка, юзер {telegram_id} не является представителем")
+		tasks = user.representative.tasks
+	else:
+		raise Exception("Ошибка, юзер {telegram_id} не является представителем или специалистом")
+	curr = []
+	for task in tasks:
+		if task.status == task_status:
+			curr.append(task)
+	return curr
 
 def get_users_for_notification(task): #после прохождения задачей модерации
-    users_for_notification = []
-    all_specialists = Session.query(User).filter(User.specialist != None).all()
-    for spec in all_specialists:
-        common = [d for d in spec.specialist.spheres if d in task.spheres]
-        if common != None:
-            users_for_notification.append(spec)
-    return users_for_notification
+	users_for_notification = []
+	all_specialists = Session.query(User).filter(User.specialist != None).all()
+	for spec in all_specialists:
+		common = [d for d in spec.specialist.spheres if d in task.spheres]
+		if common != None:
+			users_for_notification.append(spec)
+	return users_for_notification
 
 
 if __name__ == '__main__':
-    #set_task_status("Купить мыло", "open")
-    #task = get_task("Купить мыло")
-    #users = get_users_for_notification(task)
-    #for i in users:
-    #print(i.telegram_id)
+    # add_specialist(get_user(418878871))
+	#set_task_status("Купить мыло", "open")
+	#task = get_task("Купить мыло")
+	#users = get_users_for_notification(task)
+	#for i in users:
+	#print(i.telegram_id)
+    # add_spheres_global(["МЛ", "Написание текстов", "Бекенд"])   
+    # print(get_all_interests())
+    # add_representative(get_user(1409549287))
     pass

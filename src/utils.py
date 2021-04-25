@@ -25,8 +25,8 @@ def generate_reply_keyboard_for_tasks_done():
 
 def get_all_interests():
     # TODO получать список из бд
-    # return db_worker.get_all_interests()
-    return ["Дизайн", "Разработка ботов", "Вёрстка сайтов", "CRM", "Базы данных", "Аналитика", 'Машинное обучение'] 
+    return db_worker.get_all_interests()
+    # return ["Дизайн", "Разработка ботов", "Вёрстка сайтов", "CRM", "Базы данных", "Аналитика", 'Машинное обучение'] 
 
 # ☑️ ☐
 async def generate_reply_keyboard_for_tasks_spheres(state: FSMContext):
