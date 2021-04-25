@@ -451,7 +451,7 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
             to_answer = 'Задание было успешно удалено!'
             await callback_query.message.edit_text('Текущие задачи, которые Вы добавляли. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
             await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'current'))
-    if db_user.status == "specialist":
+    elif db_user.status == "specialist":
         if command == "cp_tasks":
             async with state.proxy() as state_data:
                 if f'tasks_{data[2]}' in state_data:
@@ -515,6 +515,38 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
             to_answer = 'Вы успешно взяли задание'
             await callback_query.message.edit_text('Доступные на взятие задачи. \nЧтобы получить больше информации, нажмите на задачу.')
             await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'available'))
+    elif db_user.status == "moderator":
+        if command == "cp_tasks":
+            async with state.proxy() as state_data:
+                if f'tasks_{data[2]}' in state_data:
+                    to_answer = ''
+                    if data[2] == 'unchecked' and callback_query.message.text != "Задачи, требующие модерацию. \nЧтобы получить больше информации и редактировать, нажмите на задачу.":
+                        await callback_query.message.edit_text('Задачи, требующие модерацию. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+                    await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[1]), data[2]))
+                else:
+                    to_answer = 'Кнопка устарела, начните заного'
+        elif command == "task_info":
+            to_answer = ''
+            keyboard = InlineKeyboardMarkup()
+            if data[3] == "unchecked":
+                keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} available'))
+                keyboard.insert(InlineKeyboardButton('Отметить как подтверждённое', callback_data=f'confirm {data[1]} {data[2]}'))
+            await callback_query.message.edit_text(text = utils.generate_task_description(db_worker.get_task(int(data[1]))), parse_mode="html")
+            await callback_query.message.edit_reply_markup(reply_markup = keyboard)
+        elif command == "confirm":
+            db_user = db_worker.get_user(callback_query.from_user.id)
+            task = db_worker.get_task(int(data[1]))
+            task.status = "awaiting_specialist"
+            # task.specialist = db_user.specialist
+            # TODO уведомить специалистов
+            db_worker.Session.commit()
+            tasks = db_worker.get_unchecked_taskes()
+            async with state.proxy() as state_data:
+                state_data['tasks_unchecked'] = tasks
+            to_answer = 'Вы отметили задание, как прошедшее модерацию'
+            await callback_query.message.edit_text('Задачи, требующие модерацию. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+            await callback_query.message.edit_reply_markup(reply_markup = await moderator_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'unchecked'))
+
     await callback_query.answer(to_answer)
     if to_answer == "Ошибка, начните заного":
         logging.warning(f"Необработанный колбек \"{callback_query.data}\", состояние: {await state.get_state()}")

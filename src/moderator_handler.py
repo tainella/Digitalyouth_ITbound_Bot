@@ -31,8 +31,8 @@ async def generate_inline_keyboard_for_tasks(state: FSMContext, page_n:int, type
 
 async def send_unchecked_taskes(db_user, unchecked_taskes, message: types.Message, state: FSMContext):
     async with state.proxy() as state_data:
-        state_data['tasks_history'] = unchecked_taskes
-    await message.answer('История задач, которые Вы добавляли. \nЧтобы получить больше информации, нажмите на задачу.', parse_mode='html', reply_markup=await generate_inline_keyboard_for_tasks(state, 0, 'history'))
+        state_data['tasks_unchecked'] = unchecked_taskes
+    await message.answer('Задачи, требующие модерацию. \nЧтобы получить больше информации и редактировать, нажмите на задачу.', parse_mode='html', reply_markup=await generate_inline_keyboard_for_tasks(state, 0, 'unchecked'))
 
 	
 	
