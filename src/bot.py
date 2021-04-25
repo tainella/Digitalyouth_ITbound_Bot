@@ -14,6 +14,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 
 import utils
 import db_worker
+import specialist_handler
 
 BASE = Path(os.path.realpath(__file__))
 os.chdir(BASE.parent)
@@ -62,17 +63,20 @@ async def send(message: types.Message):
         # TODO добавить эмодзи
         if db_user.status == "moderator":
             reply_keyboard.add(KeyboardButton('Начать модерацию')) 
+            reply_keyboard.insert(KeyboardButton('Профиль'))
             reply_keyboard.insert(KeyboardButton('Помощь')) 
         elif db_user.status == "specialist":
             reply_keyboard.add(KeyboardButton('Список доступных задач')) 
             reply_keyboard.add(KeyboardButton('Текущие задачи')) 
             reply_keyboard.insert(KeyboardButton('История задач'))
             reply_keyboard.add(KeyboardButton('Настройки')) 
+            reply_keyboard.insert(KeyboardButton('Профиль'))
             reply_keyboard.insert(KeyboardButton('Помощь')) 
         elif db_user.status == "representative":
             reply_keyboard.add(KeyboardButton('Добавить задачу')) 
             reply_keyboard.add(KeyboardButton('Текущие задачи')) 
             reply_keyboard.insert(KeyboardButton('История задач')) 
+            reply_keyboard.insert(KeyboardButton('Профиль'))
             reply_keyboard.add(KeyboardButton('Помощь')) 
     else:
         reply_keyboard.add(KeyboardButton('Зарегистрироваться')) 
@@ -113,35 +117,42 @@ async def send(message: types.Message, state: FSMContext):
     Все:
     Обработка сообщений из reply клавиатуры
     """
-    user_status = get_status(message.chat.id) # moderator specialists representatives
+    db_user = db_worker.get_user(message.from_user.id)
     command = message.text
-    if user_status == "moderator":
+    if db_user:
+        if db_user.status == "moderator":
+            if command == "Помощь":
+                await message.answer(res_dict["help_moderator"], parse_mode="html")
+            elif command == "Начать модерацию": 
+                pass
+        elif db_user.status == "specialist":
+            if command == "Помощь":
+                await message.answer(res_dict["help_specialist"], parse_mode="html")
+            elif command == "Список доступных задач":
+                pass
+            elif command == "Текущие задачи":
+                pass
+            elif command == "История задач":
+                pass
+            elif command == "Настройки":
+                pass
+            elif command == "Профиль":
+                await specialist_handler.send_profile_specialist(db_user, message, state)
+        elif db_user.status == "representative":
+            if command == "Помощь":
+                await message.answer(res_dict["help_representative"], parse_mode="html")
+            elif command == "Добавить задачу":
+                await message.answer("Введите <b>название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
+                await CreateTask.name.set()
+            elif command == "История задач":
+                pass
+            elif command == "Текущие задачи":
+                pass
+    else:
         if command == "Помощь":
-            await message.answer(res_dict["help_moderator"], parse_mode="html")
-        elif command == "Начать модерацию": 
+            await message.answer(res_dict["help_nobody"], parse_mode="html")
+        elif command == "Зарегестрироваться":
             pass
-    elif user_status == "specialist":
-        if command == "Помощь":
-            await message.answer(res_dict["help_specialist"], parse_mode="html")
-        elif command == "Список доступных задач":
-            pass
-        elif command == "Текущие задачи":
-            pass
-        elif command == "История задач":
-            pass
-        elif command == "Настройки":
-            pass
-    elif user_status == "representative":
-        if command == "Помощь":
-            await message.answer(res_dict["help_representative"], parse_mode="html")
-        elif command == "Добавить задачу":
-            await message.answer("Введите <b>название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
-            await CreateTask.name.set()
-        elif command == "История задач":
-            pass
-        elif command == "Текущие задачи":
-            pass
-
 # Конец блока для всех
 # Блок обработки Представителя
 

@@ -2,7 +2,7 @@ src/secret_data/*
 src/data/*
 !src/secret_data/README.md
 !src/data/README.md
-
+.DS_Store
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
