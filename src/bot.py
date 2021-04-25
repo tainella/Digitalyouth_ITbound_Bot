@@ -14,7 +14,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 
 import utils
 import db_worker
-import specialist_handler, representative_handler
+import specialist_handler, representative_handler, registration
 from utils import res_dict
 
 BASE = Path(os.path.realpath(__file__))
@@ -32,13 +32,22 @@ dp = Dispatcher(bot, storage=storage)
 
 class CreateTask(StatesGroup):
     """
-    КА создания задачи для представителя
+    КА создания задачи для создания таска представителем
     """
     name = State()
     description = State()
     spheres = State()
     done = State()
 
+
+class Registration(StatesGroup):
+    """
+    КА создания задачи для регистрации
+    """
+    fullname = State()
+    phone = State()
+    wished_role = State()
+    done = State()
 
 
 def get_status(chat_id: int):
@@ -156,7 +165,8 @@ async def send(message: types.Message, state: FSMContext):
         if command == "Помощь":
             await message.answer(res_dict["help_nobody"], parse_mode="html")
         elif command == "Зарегистрироваться":
-            pass
+            await message.answer("Введите ФИО", parse_mode="html", reply_markup=registration.generate_inline_keyboard_for_registration_start())
+            await Registration.fullname.set()
 # Конец блока для всех
 # Блок обработки Представителя
 
