@@ -31,11 +31,11 @@ def generate_task_description(task) -> str:
         status_str = "Закрыт заказчиком"
     elif task.status == "closed_by_other_reason":
         status_str = "Закрыт"
-    specialist_str = task.specialist.real_fullname if task.specialist is not None else "Не назначен"
-
+    specialist_str = task.specialist.user.real_fullname if task.specialist is not None else "Не назначен"
+    spheres = [sphere.spheres.name for sphere in task.spheres]
     to_return = res_dict['task_info'].format(task.name,
         task.description,
-        ', '.join(task.spheres),
+        ', '.join(spheres),
         status_str,
         task.representative.user.real_fullname,
         specialist_str,

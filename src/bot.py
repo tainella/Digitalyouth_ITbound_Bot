@@ -76,7 +76,6 @@ async def send(message: types.Message):
         reply_keyboard.add(KeyboardButton('Список доступных задач')) 
         reply_keyboard.add(KeyboardButton('Текущие задачи')) 
         reply_keyboard.insert(KeyboardButton('История задач'))
-        # reply_keyboard.add(KeyboardButton('Настройки')) 
         reply_keyboard.add(KeyboardButton('Профиль'))
         reply_keyboard.insert(KeyboardButton('Помощь')) 
     elif db_user.status == "representative":
@@ -91,6 +90,16 @@ async def send(message: types.Message):
     await message.answer(res_dict["start"], parse_mode="html", reply_markup=reply_keyboard)
     # print(message.from_user.get_mention(as_html=True))
     
+# TODO нормальное info
+@dp.message_handler(commands = "info", state=None)
+async def send(message: types.Message):
+    await message.answer(res_dict["info"], parse_mode="html")
+
+# TODO нормальное contacts
+@dp.message_handler(commands = "contacts", state=None)
+async def send(message: types.Message):
+    await message.answer(res_dict["contacts"], parse_mode="html")
+
 
 @dp.message_handler(state='*', commands='/cancel')
 @dp.message_handler(Text(equals='отмена', ignore_case=True), state='*')
@@ -113,9 +122,15 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
     Все:
     Отмена действий через inline клавиатуру
     """
-    await state.finish()
-    await callback_query.message.delete()
-    await callback_query.message.answer('Отменено')
+    current_state = await state.get_state()
+    if current_state is None:
+        await callback_query.answer('Вы и так ничего не делаете:)')
+    else:
+        await state.finish()
+        await callback_query.message.delete()
+        await callback_query.message.answer('Отменено')        
+        await callback_query.answer()
+
 
 
 @dp.message_handler(state=None)
@@ -143,11 +158,11 @@ async def send(message: types.Message, state: FSMContext):
         if command == "Помощь":
             await message.answer(res_dict["help_specialist"], parse_mode="html")
         elif command == "Список доступных задач":
-            pass
-        elif command == "Текущие задачи":
-            pass
+            await specialist_handler.available_tasks(db_user, message, state)
         elif command == "История задач":
-            pass
+            await specialist_handler.tasks_history(db_user, message, state)
+        elif command == "Текущие задачи":
+            await specialist_handler.tasks_current(db_user, message, state)
         elif command == "Профиль":
             await specialist_handler.send_profile(db_user, message, state)
     elif db_user.status == "representative":
@@ -162,12 +177,13 @@ async def send(message: types.Message, state: FSMContext):
             await representative_handler.tasks_current(db_user, message, state)
         elif command == "Профиль":
             await representative_handler.send_profile(db_user, message, state)
-    else:
+    elif db_user.status == None:
         if command == "Помощь":
             await message.answer(res_dict["help_nobody"], parse_mode="html")
         elif command == "Зарегистрироваться":
             await message.answer("Введите ФИО", parse_mode="html", reply_markup=registration.generate_inline_keyboard_for_registration_start())
             await Registration.fullname.set()
+
 # Конец блока для всех
 # Блок обработки Представителя
 
@@ -286,8 +302,19 @@ async def send(update, state: FSMContext):
 #Конец Модератора
 
 # Колбеки для регистрации
-
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.phone)
+async def send(callback_query: types.CallbackQuery, state: FSMContext):
+    """
+    Представитель:
+    Выбор названия задачи
+    """
+    await callback_query.answer()
+    await callback_query.message.delete()
+    await Registration.fullname.set()
+    await callback_query.message.answer("Введите ФИО", parse_mode="html", reply_markup=registration.generate_inline_keyboard_for_registration_start())
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.wished_role)
 @dp.message_handler(state=Registration.fullname)
 async def send(update, state: FSMContext):
     """
@@ -302,9 +329,9 @@ async def send(update, state: FSMContext):
         await message.answer("Введите <b>свой телефонный номер</b>\n", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
     else:
         message = update
-            if len(message.text) > 50:
+        if len(message.text) > 50:
             await message.answer(f"Ошибка, ФИО должно быть не более 50 символов.\n(Введено {len(message.text)} символов)\n\nВведите <b>укороченную версию ФИО</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
-        elif message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
+        elif message.text in ["Помощь", "Регистрация"]:
             await message.answer('Ошибка, неправильное ФИО.\n\nВведите <b>настоящее ФИО</b>\n(не более 50 символов)\nДля отмены регистрации нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
         else:
             async with state.proxy() as data:
@@ -314,7 +341,7 @@ async def send(update, state: FSMContext):
             await message.answer("Введите <b>свой телефонный номер</b>\n", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
 
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.wished_role)
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.done)
 @dp.message_handler(state=Registration.phone)
 async def send(update, state: FSMContext):
     """
@@ -330,33 +357,60 @@ async def send(update, state: FSMContext):
     else:
         message = update
         #добавить проверку телефона
-        if message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
+        if message.text in ["Помощь", "Регистрация"]:
             await message.answer('Ошибка, неправильный телефонный номер.\n\nВведите <b>другой телефонный номер</b>\nДля отмены регистрации, нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
         else:
             async with state.proxy() as data:
                 data['phone'] = message.text
-            
             await Registration.next()
-            await message.answer("Кто вы?", reply_markup=await registration.generate_role_keyboard())
+            await message.answer("Кто Вы?", reply_markup=registration.generate_role_keyboard())
 
-@dp.callback_query_handler(state=Registration.done)
+
+# @dp.callback_query_handler(state=Registration.done)
+# async def send(callback_query: types.CallbackQuery, state: FSMContext):
+#     if callback_query.data == 'wish_specialist':
+#         await callback_query.message.answer("Регистрация прошла успешно")
+#         user = get_user(callback_query.message.from_user.id)
+#         add_specialist(user)
+#     else:
+#         await state.finish()
+#         await callback_query.message.answer("Ваша анкета была отправлена на рассмотрение модератором")
+
+
+@dp.callback_query_handler(state=Registration.wished_role)
 async def send(callback_query: types.CallbackQuery, state: FSMContext):
+    user = db_worker.get_user(callback_query.from_user.id)
     if callback_query.data == 'wish_specialist':
-        await message.answer("Регистрация прошла успешно")
-        user = get_user(message.from_user.id)
-        add_specialist(user)
-    elif:
-        await Registration.next()
-        await message.answer("Ваша анкета была отправлена на рассмотрение модератором")
+        db_worker.add_specialist(user)
+        user.status = "specialist"
+        await callback_query.message.answer("Регистрация прошла успешно")
+        reply_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+        reply_keyboard.add(KeyboardButton('Список доступных задач')) 
+        reply_keyboard.add(KeyboardButton('Текущие задачи')) 
+        reply_keyboard.insert(KeyboardButton('История задач'))
+        # reply_keyboard.add(KeyboardButton('Настройки')) 
+        reply_keyboard.add(KeyboardButton('Профиль'))
+        reply_keyboard.insert(KeyboardButton('Помощь')) 
+        await callback_query.message.answer(res_dict["start"], parse_mode="html", reply_markup=reply_keyboard)
+    else:
+        if callback_query.data == 'wish_moderator':
+            user.status = "wish_moder"
+        else:
+            user.status = "wish_repre"
+        await callback_query.message.answer("Ваша анкета была отправлена на рассмотрение модератором")
+    async with state.proxy() as data:
+        user.fullname = data['fullname']
+        user.phone = data['phone']
+    db_worker.Session.commit()
+    await callback_query.answer()
+    await state.finish()
 
 # Конец колбеков для регистрации
-
 # Блок обработки колбеков от всех 
-
 @dp.callback_query_handler(state='*')
 async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
     """
-    Все
+    Всеget_state
     Обработка колбеков без КА
     """
     db_user = db_worker.get_user(callback_query.from_user.id)
@@ -385,11 +439,68 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
             if data[3] == "current":
                 keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
                 keyboard.insert(InlineKeyboardButton('Редактировать', callback_data=f'edit_task {data[1]}'))
-                keyboard.insert(InlineKeyboardButton('Удалить', callback_data=f'delete_task_repr {data[1]}'))
+                keyboard.insert(InlineKeyboardButton('Удалить', callback_data=f'delete_task_repr {data[1]} {data[2]}'))
             await callback_query.message.edit_text(text = utils.generate_task_description(db_worker.get_task(int(data[1]))), parse_mode="html")
             await callback_query.message.edit_reply_markup(reply_markup = keyboard)
-
+        elif command == "delete_task_repr":
+            to_answer = 'Подтвердите удаление задания'
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
+            keyboard.insert(InlineKeyboardButton('Редактировать', callback_data=f'edit_task {data[1]}'))
+            keyboard.insert(InlineKeyboardButton('Удалить!', callback_data=f'delete_task_repr_sure {data[1]} {data[2]}'))
+            await callback_query.message.edit_reply_markup(reply_markup = keyboard)
+        elif command == "delete_task_repr_sure":
+            db_worker.get_task(int(data[1])).status = "canceled_by_represented"
+            db_worker.Session.commit()
+            tasks = db_worker.get_tasks_for_user(db_user,  ['awaiting_confirmation', 'awaiting_specialist', 'in_work'])
+            async with state.proxy() as state_data:
+                state_data['tasks_current'] = tasks
+            to_answer = 'Задание было успешно удалено!'
+            await callback_query.message.edit_text('Текущие задачи, которые Вы добавляли. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+            await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'current'))
+    if db_user.status == "specialist":
+        if command == "cp_tasks":
+            async with state.proxy() as state_data:
+                if f'tasks_{data[2]}' in state_data:
+                    to_answer = ''
+                    if data[2] == 'history' and callback_query.message.text != "История задач, которые Вы выполнили. \nЧтобы получить больше информации, нажмите на задачу.":
+                        await callback_query.message.edit_text('История задач, которые Вы выполнили. \nЧтобы получить больше информации, нажмите на задачу.')
+                    if data[2] == 'current' and callback_query.message.text != "Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.":
+                        await callback_query.message.edit_text('Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+                    await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[1]), data[2]))
+                else:
+                    to_answer = 'Кнопка устарела, начните заного'
+        elif command == "task_info":
+            to_answer = ''
+            keyboard = InlineKeyboardMarkup()
+            if data[3] == "history":
+                keyboard.insert(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} history'))
+            if data[3] == "current":
+                keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
+                keyboard.insert(InlineKeyboardButton('Отказаться от выполнения', callback_data=f'refuse_task {data[1]} {data[2]}'))
+            await callback_query.message.edit_text(text = utils.generate_task_description(db_worker.get_task(int(data[1]))), parse_mode="html")
+            await callback_query.message.edit_reply_markup(reply_markup = keyboard)
+        elif command == "refuse_task":
+            to_answer = 'Подтвердите отказ от выполнения'
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
+            keyboard.insert(InlineKeyboardButton('Отказаться от выполнения!', callback_data=f'refuse_task_sure {data[1]} {data[2]}'))
+            await callback_query.message.edit_reply_markup(reply_markup = keyboard)
+        elif command == "refuse_task_sure":
+            task = db_worker.get_task(int(data[1]))
+            task.status = "awaiting_specialist"
+            task.specialist = None
+            # TODO уведомить как-то представителя 
+            db_worker.Session.commit()
+            tasks = db_worker.get_tasks_for_user(db_user,  ['awaiting_confirmation', 'awaiting_specialist', 'in_work'])
+            async with state.proxy() as state_data:
+                state_data['tasks_current'] = tasks
+            to_answer = 'Вы успешно отказались от задания!'
+            await callback_query.message.edit_text('Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+            await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'current'))
     await callback_query.answer(to_answer)
+    if to_answer == "Ошибка, начните заного":
+        logging.warning(f"Необработанный колбек \"{callback_query.data}\", состояние: {await state.get_state()}")
 
 
 if __name__ == '__main__':
