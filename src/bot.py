@@ -14,7 +14,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 
 import utils
 import db_worker
-import specialist_handler, representative_handler, registration
+import specialist_handler, representative_handler, moderator_handler, registration
 from utils import res_dict
 
 BASE = Path(os.path.realpath(__file__))
@@ -149,7 +149,8 @@ async def send(message: types.Message, state: FSMContext):
         if command == "Помощь":
             await message.answer(res_dict["help_moderator"], parse_mode="html")
         elif command == "Начать модерацию": 
-            pass
+            unchecked_taskes = db_worker.get_unchecked_taskes()
+            await moderator_handler.send_unchecked_taskes(db_user, unchecked_taskes, message, state)
         elif command == "Профиль":
             pass
             # await specialist_handler.send_profile_specialist(db_user, message, state)
@@ -295,6 +296,10 @@ async def send(update, state: FSMContext):
             await CreateTask.next()
             await message.answer("Выберите сферы разработки", reply_markup=await representative_handler.generate_reply_keyboard_for_tasks_spheres(state))
 # Конец блока Представителя
+
+#Модератор
+
+#Конец Модератора
 
 # Колбеки для регистрации
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.phone)
