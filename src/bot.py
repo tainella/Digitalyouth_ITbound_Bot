@@ -413,7 +413,7 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
         db_user = db_worker.add_user(callback_query.from_user.id, callback_query.from_user.full_name, callback_query.from_user.username)
     data = callback_query.data.split()
     command = data[0]
-    to_answer = 'Ошибка, начните заного'
+    to_answer = 'Кнопка устарела, либо ещё не работает, начните заного:('
     if db_user.status == "representative": 
         if command == "cp_tasks":
             async with state.proxy() as state_data:
@@ -462,6 +462,8 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
                         await callback_query.message.edit_text('История задач, которые Вы выполнили. \nЧтобы получить больше информации, нажмите на задачу.')
                     if data[2] == 'current' and callback_query.message.text != "Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.":
                         await callback_query.message.edit_text('Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
+                    if data[2] == 'available' and callback_query.message.text != "Доступные на взятие задачи. \nЧтобы получить больше информации, нажмите на задачу.":
+                        await callback_query.message.edit_text('Доступные на взятие задачи. \nЧтобы получить больше информации, нажмите на задачу.')
                     await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[1]), data[2]))
                 else:
                     to_answer = 'Кнопка устарела, начните заного'
@@ -470,9 +472,12 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
             keyboard = InlineKeyboardMarkup()
             if data[3] == "history":
                 keyboard.insert(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} history'))
-            if data[3] == "current":
+            elif data[3] == "current":
                 keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
                 keyboard.insert(InlineKeyboardButton('Отказаться от выполнения', callback_data=f'refuse_task {data[1]} {data[2]}'))
+            elif data[3] == "available":
+                keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} available'))
+                keyboard.insert(InlineKeyboardButton('Взять', callback_data=f'take_task {data[1]} {data[2]}'))
             await callback_query.message.edit_text(text = utils.generate_task_description(db_worker.get_task(int(data[1]))), parse_mode="html")
             await callback_query.message.edit_reply_markup(reply_markup = keyboard)
         elif command == "refuse_task":
@@ -493,6 +498,25 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
             to_answer = 'Вы успешно отказались от задания!'
             await callback_query.message.edit_text('Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
             await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'current'))
+        elif command == "take_task":
+            to_answer = 'Подтвердите взятие задачи'
+            keyboard = InlineKeyboardMarkup()
+            keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
+            keyboard.insert(InlineKeyboardButton('Взять!', callback_data=f'take_task_sure {data[1]} {data[2]}'))
+            await callback_query.message.edit_reply_markup(reply_markup = keyboard)
+        elif command == "take_task_sure":
+            db_user = db_worker.get_user(callback_query.from_user.id)
+            task = db_worker.get_task(int(data[1]))
+            task.status = "in_work"
+            task.specialist = db_user.specialist
+            # TODO уведомить как-то представителя 
+            db_worker.Session.commit()
+            tasks = db_worker.get_opened_tasks([sphere.spheres for sphere in db_user.specialist.spheres])
+            async with state.proxy() as state_data:
+                state_data['tasks_available'] = tasks
+            to_answer = 'Вы успешно взяли задание'
+            await callback_query.message.edit_text('Доступные на взятие задачи. \nЧтобы получить больше информации, нажмите на задачу.')
+            await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'available'))
     await callback_query.answer(to_answer)
     if to_answer == "Ошибка, начните заного":
         logging.warning(f"Необработанный колбек \"{callback_query.data}\", состояние: {await state.get_state()}")

@@ -34,7 +34,7 @@ async def generate_inline_keyboard_for_tasks(state: FSMContext, page_n:int, type
             reply_markup.add(types.InlineKeyboardButton(f"{page_n * 9 + (index + 1)}. {task.name}"[:60],
                                                         callback_data=callback_data_to_input))
         reply_markup.row()
-        # cp_history - change page in history
+        # cp_tasks - change page in tasks
         if page_n != 0:
             reply_markup.insert(types.InlineKeyboardButton("<<", callback_data=f'cp_tasks {page_n - 1} {type_}'))
         if (page_n + 1) * 9 < len(tasks_list):
@@ -55,8 +55,9 @@ async def tasks_current(db_user, message: types.Message, state: FSMContext):
         state_data['tasks_current'] = tasks
     await message.answer('Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.', parse_mode='html', reply_markup=await generate_inline_keyboard_for_tasks(state, 0, 'current'))
 
+
 async def available_tasks(db_user, message: types.Message, state: FSMContext):
-    tasks = db_worker.get_opened_tasks([sphere.spheres for sphere in db_user.spheres])
+    tasks = db_worker.get_opened_tasks([sphere.spheres for sphere in db_user.specialist.spheres])
     async with state.proxy() as state_data:
-        state_data['tasks_history'] = tasks
-    await message.answer('История задач, которые Вы выполнили. \nЧтобы получить больше информации, нажмите на задачу.', parse_mode='html', reply_markup=await generate_inline_keyboard_for_tasks(state, 0, 'history'))
+        state_data['tasks_available'] = tasks
+    await message.answer('Доступные на взятие задачи. \nЧтобы получить больше информации, нажмите на задачу.', parse_mode='html', reply_markup=await generate_inline_keyboard_for_tasks(state, 0, 'available'))
