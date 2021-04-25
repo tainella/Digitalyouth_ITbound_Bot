@@ -250,7 +250,7 @@ async def send(update, state: FSMContext):
 
             await CreateTask.next()
             await message.answer("Введите <b>описание задачи</b>\n(не более 2000 символов)", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
-    
+
 
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=CreateTask.done)
 @dp.message_handler(state=CreateTask.description)
@@ -278,9 +278,74 @@ async def send(update, state: FSMContext):
 
             await CreateTask.next()
             await message.answer("Выберите сферы разработки", reply_markup=await representative_handler.generate_reply_keyboard_for_tasks_spheres(state))
-
-
 # Конец блока Представителя
+
+# Колбеки для регистрации
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.phone)
+@dp.message_handler(state=Registration.fullname)
+async def send(update, state: FSMContext):
+    """
+        Регистрация:
+        Ввели фамилию, ввод телефона
+        """
+    if isinstance(update, types.CallbackQuery):
+        message = update.message
+        await update.answer()
+        await update.message.delete()
+        await Registration.phone.set()
+        await message.answer("Введите <b>свой телефонный номер</b>\n", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
+    else:
+        message = update
+            if len(message.text) > 50:
+            await message.answer(f"Ошибка, ФИО должно быть не более 50 символов.\n(Введено {len(message.text)} символов)\n\nВведите <b>укороченную версию ФИО</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
+        elif message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
+            await message.answer('Ошибка, неправильное ФИО.\n\nВведите <b>настоящее ФИО</b>\n(не более 50 символов)\nДля отмены регистрации нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
+        else:
+            async with state.proxy() as data:
+                data['fullname'] = message.text
+            
+            await Registration.next()
+            await message.answer("Введите <b>свой телефонный номер</b>\n", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.wished_role)
+@dp.message_handler(state=Registration.phone)
+async def send(update, state: FSMContext):
+    """
+        Регистрация:
+        Обработка телефона и выбор желаемой роли
+        """
+    if isinstance(update, types.CallbackQuery):
+        message = update.message
+        await update.answer()
+        await update.message.delete()
+        await Registration.wished_role.set()
+        await message.answer("Кто вы?", reply_markup=await registration.generate_role_keyboard())
+    else:
+        message = update
+        #добавить проверку телефона
+        if message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
+            await message.answer('Ошибка, неправильный телефонный номер.\n\nВведите <b>другой телефонный номер</b>\nДля отмены регистрации, нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
+        else:
+            async with state.proxy() as data:
+                data['phone'] = message.text
+            
+            await Registration.next()
+            await message.answer("Кто вы?", reply_markup=await registration.generate_role_keyboard())
+
+@dp.callback_query_handler(state=Registration.done)
+async def send(callback_query: types.CallbackQuery, state: FSMContext):
+    if callback_query.data == 'wish_specialist':
+        await message.answer("Регистрация прошла успешно")
+        user = get_user(message.from_user.id)
+        add_specialist(user)
+    elif:
+        await Registration.next()
+        await message.answer("Ваша анкета была отправлена на рассмотрение модератором")
+
+# Конец колбеков для регистрации
+
 # Блок обработки колбеков от всех 
 
 @dp.callback_query_handler(state='*')
