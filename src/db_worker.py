@@ -431,4 +431,5 @@ if __name__ == '__main__':
     # add_representative(get_user(1409549287))
     # user = get_user(418878871)
     # set_spesialist_spheres(user, ["МЛ", 'Разработка ботов', 'Бекенд'])
+    print(get_user(1624330498))
     pass

@@ -76,7 +76,6 @@ async def send(message: types.Message):
         reply_keyboard.add(KeyboardButton('Список доступных задач')) 
         reply_keyboard.add(KeyboardButton('Текущие задачи')) 
         reply_keyboard.insert(KeyboardButton('История задач'))
-        # reply_keyboard.add(KeyboardButton('Настройки')) 
         reply_keyboard.add(KeyboardButton('Профиль'))
         reply_keyboard.insert(KeyboardButton('Помощь')) 
     elif db_user.status == "representative":
@@ -123,9 +122,15 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
     Все:
     Отмена действий через inline клавиатуру
     """
-    await state.finish()
-    await callback_query.message.delete()
-    await callback_query.message.answer('Отменено')
+    current_state = await state.get_state()
+    if current_state is None:
+        await callback_query.answer('Вы и так ничего не делаете:)')
+    else:
+        await state.finish()
+        await callback_query.message.delete()
+        await callback_query.message.answer('Отменено')        
+        await callback_query.answer()
+
 
 
 @dp.message_handler(state=None)
@@ -292,8 +297,19 @@ async def send(update, state: FSMContext):
 # Конец блока Представителя
 
 # Колбеки для регистрации
-
 @dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.phone)
+async def send(callback_query: types.CallbackQuery, state: FSMContext):
+    """
+    Представитель:
+    Выбор названия задачи
+    """
+    await callback_query.answer()
+    await callback_query.message.delete()
+    await Registration.fullname.set()
+    await callback_query.message.answer("Введите ФИО", parse_mode="html", reply_markup=registration.generate_inline_keyboard_for_registration_start())
+
+
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.wished_role)
 @dp.message_handler(state=Registration.fullname)
 async def send(update, state: FSMContext):
     """
@@ -308,9 +324,9 @@ async def send(update, state: FSMContext):
         await message.answer("Введите <b>свой телефонный номер</b>\n", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
     else:
         message = update
-            if len(message.text) > 50:
+        if len(message.text) > 50:
             await message.answer(f"Ошибка, ФИО должно быть не более 50 символов.\n(Введено {len(message.text)} символов)\n\nВведите <b>укороченную версию ФИО</b>\n(не более 50 символов)", parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
-        elif message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
+        elif message.text in ["Помощь", "Регистрация"]:
             await message.answer('Ошибка, неправильное ФИО.\n\nВведите <b>настоящее ФИО</b>\n(не более 50 символов)\nДля отмены регистрации нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=utils.generate_reply_keyboard_for_tasks_start())
         else:
             async with state.proxy() as data:
@@ -320,7 +336,7 @@ async def send(update, state: FSMContext):
             await message.answer("Введите <b>свой телефонный номер</b>\n", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
 
 
-@dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.wished_role)
+@dp.callback_query_handler(lambda callback_query: callback_query.data == "back", state=Registration.done)
 @dp.message_handler(state=Registration.phone)
 async def send(update, state: FSMContext):
     """
@@ -336,33 +352,60 @@ async def send(update, state: FSMContext):
     else:
         message = update
         #добавить проверку телефона
-        if message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
+        if message.text in ["Помощь", "Регистрация"]:
             await message.answer('Ошибка, неправильный телефонный номер.\n\nВведите <b>другой телефонный номер</b>\nДля отмены регистрации, нажмите <code>"Отмена"</code>', parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
         else:
             async with state.proxy() as data:
                 data['phone'] = message.text
-            
             await Registration.next()
-            await message.answer("Кто вы?", reply_markup=await registration.generate_role_keyboard())
+            await message.answer("Кто Вы?", reply_markup=registration.generate_role_keyboard())
 
-@dp.callback_query_handler(state=Registration.done)
+
+# @dp.callback_query_handler(state=Registration.done)
+# async def send(callback_query: types.CallbackQuery, state: FSMContext):
+#     if callback_query.data == 'wish_specialist':
+#         await callback_query.message.answer("Регистрация прошла успешно")
+#         user = get_user(callback_query.message.from_user.id)
+#         add_specialist(user)
+#     else:
+#         await state.finish()
+#         await callback_query.message.answer("Ваша анкета была отправлена на рассмотрение модератором")
+
+
+@dp.callback_query_handler(state=Registration.wished_role)
 async def send(callback_query: types.CallbackQuery, state: FSMContext):
+    user = db_worker.get_user(callback_query.from_user.id)
     if callback_query.data == 'wish_specialist':
-        await message.answer("Регистрация прошла успешно")
-        user = get_user(message.from_user.id)
-        add_specialist(user)
-    elif:
-        await Registration.next()
-        await message.answer("Ваша анкета была отправлена на рассмотрение модератором")
+        db_worker.add_specialist(user)
+        user.status = "specialist"
+        await callback_query.message.answer("Регистрация прошла успешно")
+        reply_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+        reply_keyboard.add(KeyboardButton('Список доступных задач')) 
+        reply_keyboard.add(KeyboardButton('Текущие задачи')) 
+        reply_keyboard.insert(KeyboardButton('История задач'))
+        # reply_keyboard.add(KeyboardButton('Настройки')) 
+        reply_keyboard.add(KeyboardButton('Профиль'))
+        reply_keyboard.insert(KeyboardButton('Помощь')) 
+        await callback_query.message.answer(res_dict["start"], parse_mode="html", reply_markup=reply_keyboard)
+    else:
+        if callback_query.data == 'wish_moderator':
+            user.status = "wish_moder"
+        else:
+            user.status = "wish_repre"
+        await callback_query.message.answer("Ваша анкета была отправлена на рассмотрение модератором")
+    async with state.proxy() as data:
+        user.fullname = data['fullname']
+        user.phone = data['phone']
+    db_worker.Session.commit()
+    await callback_query.answer()
+    await state.finish()
 
 # Конец колбеков для регистрации
-
 # Блок обработки колбеков от всех 
-
 @dp.callback_query_handler(state='*')
 async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMContext):
     """
-    Все
+    Всеget_state
     Обработка колбеков без КА
     """
     db_user = db_worker.get_user(callback_query.from_user.id)
@@ -451,6 +494,8 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
             await callback_query.message.edit_text('Текущие задачи, которые Вы сейчас выполняете. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
             await callback_query.message.edit_reply_markup(reply_markup = await representative_handler.generate_inline_keyboard_for_tasks(state, int(data[2]), 'current'))
     await callback_query.answer(to_answer)
+    if to_answer == "Ошибка, начните заного":
+        logging.warning(f"Необработанный колбек \"{callback_query.data}\", состояние: {await state.get_state()}")
 
 
 if __name__ == '__main__':
