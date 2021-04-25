@@ -305,6 +305,7 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
             if data[3] == "current":
                 keyboard.add(InlineKeyboardButton('Назад', callback_data=f'cp_tasks {data[2]} current'))
                 keyboard.insert(InlineKeyboardButton('Редактировать', callback_data=f'edit_task {data[1]}'))
+                keyboard.insert(InlineKeyboardButton('Удалить', callback_data=f'delete_task_repr {data[1]}'))
             await callback_query.message.edit_text(text = utils.generate_task_description(db_worker.get_task(int(data[1]))), parse_mode="html")
             await callback_query.message.edit_reply_markup(reply_markup = keyboard)
 
