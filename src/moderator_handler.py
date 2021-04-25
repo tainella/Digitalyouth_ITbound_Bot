@@ -17,10 +17,6 @@ async def generate_inline_keyboard_for_tasks(state: FSMContext, page_n:int, type
         return False
     else:
         reply_markup = types.InlineKeyboardMarkup()
-        # for index, anime in enumerate(anime_list):
-        #     callback_data_to_input = await gen_callback_data(f"anime {anime['anime_url']}")
-        #     reply_markup.add(types.InlineKeyboardButton(f"{index + 1}. {anime['anime_title']}"[:60],
-        #                                                 callback_data=callback_data_to_input))
         for index, task in enumerate(tasks_list[page_n * 9:(page_n + 1) * 9]):
             callback_data_to_input = f"task_info {task.id} {page_n} {type_}"
             reply_markup.add(types.InlineKeyboardButton(f"{page_n * 9 + (index + 1)}. {task.name}"[:60],
@@ -31,12 +27,11 @@ async def generate_inline_keyboard_for_tasks(state: FSMContext, page_n:int, type
             reply_markup.insert(types.InlineKeyboardButton("<<", callback_data=f'cp_tasks {page_n - 1} {type_}'))
         if (page_n + 1) * 9 < len(tasks_list):
             reply_markup.insert(types.InlineKeyboardButton(">>", callback_data=f'cp_tasks {page_n + 1} {type_}'))
-        # logging.info(reply_markup)
         return reply_markup
 
 async def send_unchecked_taskes(db_user, unchecked_taskes, message: types.Message, state: FSMContext):
     async with state.proxy() as state_data:
-        state_data['tasks_history'] = tasks
+        state_data['tasks_history'] = unchecked_taskes
     await message.answer('История задач, которые Вы добавляли. \nЧтобы получить больше информации, нажмите на задачу.', parse_mode='html', reply_markup=await generate_inline_keyboard_for_tasks(state, 0, 'history'))
 
 	

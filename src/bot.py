@@ -69,24 +69,24 @@ async def send(message: types.Message):
     reply_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     # TODO добавить эмодзи
     if db_user.status == "moderator":
-        reply_keyboard.add(KeyboardButton('Начать модерацию')) 
-        reply_keyboard.insert(KeyboardButton('Профиль'))
-        reply_keyboard.insert(KeyboardButton('Помощь')) 
+        reply_keyboard.add(KeyboardButton('Начать модерацию 📝')) 
+        reply_keyboard.add(KeyboardButton('Профиль 👤'))
+        reply_keyboard.insert(KeyboardButton('Помощь 🙋')) 
     elif db_user.status == "specialist":
-        reply_keyboard.add(KeyboardButton('Список доступных задач')) 
-        reply_keyboard.add(KeyboardButton('Текущие задачи')) 
-        reply_keyboard.insert(KeyboardButton('История задач'))
-        reply_keyboard.add(KeyboardButton('Профиль'))
-        reply_keyboard.insert(KeyboardButton('Помощь')) 
+        reply_keyboard.add(KeyboardButton('Список доступных задач 📝')) 
+        reply_keyboard.add(KeyboardButton('Текущие задачи 📋')) 
+        reply_keyboard.insert(KeyboardButton('История задач 📜'))
+        reply_keyboard.add(KeyboardButton('Профиль 👤'))
+        reply_keyboard.insert(KeyboardButton('Помощь 🙋')) 
     elif db_user.status == "representative":
-        reply_keyboard.add(KeyboardButton('Добавить задачу')) 
-        reply_keyboard.add(KeyboardButton('Текущие задачи')) 
-        reply_keyboard.insert(KeyboardButton('История задач')) 
-        reply_keyboard.add(KeyboardButton('Профиль'))
-        reply_keyboard.insert(KeyboardButton('Помощь')) 
+        reply_keyboard.add(KeyboardButton('Добавить задачу 📝')) 
+        reply_keyboard.add(KeyboardButton('Текущие задачи 📋')) 
+        reply_keyboard.insert(KeyboardButton('История задач 📜')) 
+        reply_keyboard.add(KeyboardButton('Профиль 👤'))
+        reply_keyboard.insert(KeyboardButton('Помощь 🙋')) 
     else:
-        reply_keyboard.add(KeyboardButton('Зарегистрироваться')) 
-        reply_keyboard.insert(KeyboardButton('Помощь')) 
+        reply_keyboard.add(KeyboardButton('Зарегистрироваться 📝')) 
+        reply_keyboard.insert(KeyboardButton('Помощь 🙋')) 
     await message.answer(res_dict["start"], parse_mode="html", reply_markup=reply_keyboard)
     # print(message.from_user.get_mention(as_html=True))
     
@@ -143,44 +143,44 @@ async def send(message: types.Message, state: FSMContext):
     if not db_user:
         db_user = db_worker.add_user(message.from_user.id, message.from_user.full_name, message.from_user.username)
     command = message.text
-    if command not in ["Помощь", "Начать модерацию", "Список доступных задач", "Текущие задачи", "История задач", "Профиль", "Добавить задачу", "Зарегистрироваться"]:
+    if command not in ["Помощь 🙋", "Начать модерацию 📝", "Список доступных задач 📝", "Текущие задачи 📋", "История задач 📜", "Профиль 👤", "Добавить задачу 📝", "Зарегистрироваться 📝"]:
         await message.answer("Ошибка, команда не найдена")
     if db_user.status == "moderator":
-        if command == "Помощь":
+        if command == "Помощь 🙋":
             await message.answer(res_dict["help_moderator"], parse_mode="html")
-        elif command == "Начать модерацию": 
+        elif command == "Начать модерацию 📝": 
             unchecked_taskes = db_worker.get_unchecked_taskes()
             await moderator_handler.send_unchecked_taskes(db_user, unchecked_taskes, message, state)
-        elif command == "Профиль":
+        elif command == "Профиль 👤":
             pass
             # await specialist_handler.send_profile_specialist(db_user, message, state)
     elif db_user.status == "specialist":
-        if command == "Помощь":
+        if command == "Помощь 🙋":
             await message.answer(res_dict["help_specialist"], parse_mode="html")
-        elif command == "Список доступных задач":
+        elif command == "Список доступных задач 📝":
             await specialist_handler.available_tasks(db_user, message, state)
-        elif command == "История задач":
+        elif command == "История задач 📜":
             await specialist_handler.tasks_history(db_user, message, state)
-        elif command == "Текущие задачи":
+        elif command == "Текущие задачи 📋":
             await specialist_handler.tasks_current(db_user, message, state)
-        elif command == "Профиль":
+        elif command == "Профиль 👤":
             await specialist_handler.send_profile(db_user, message, state)
     elif db_user.status == "representative":
-        if command == "Помощь":
+        if command == "Помощь 🙋":
             await message.answer(res_dict["help_representative"], parse_mode="html")
-        elif command == "Добавить задачу":
+        elif command == "Добавить задачу 📝":
             await message.answer("Введите <b>название задачи</b>\n(не более 50 символов)", parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks_start())
             await CreateTask.name.set()
-        elif command == "История задач":
+        elif command == "История задач 📜":
             await representative_handler.tasks_history(db_user, message, state)
-        elif command == "Текущие задачи":
+        elif command == "Текущие задачи 📋":
             await representative_handler.tasks_current(db_user, message, state)
-        elif command == "Профиль":
+        elif command == "Профиль 👤":
             await representative_handler.send_profile(db_user, message, state)
     elif db_user.status == None:
-        if command == "Помощь":
+        if command == "Помощь 🙋":
             await message.answer(res_dict["help_nobody"], parse_mode="html")
-        elif command == "Зарегистрироваться":
+        elif command == "Зарегистрироваться 📝":
             await message.answer("Введите ФИО", parse_mode="html", reply_markup=registration.generate_inline_keyboard_for_registration_start())
             await Registration.fullname.set()
 
@@ -366,19 +366,12 @@ async def send(update, state: FSMContext):
             await message.answer("Кто Вы?", reply_markup=registration.generate_role_keyboard())
 
 
-# @dp.callback_query_handler(state=Registration.done)
-# async def send(callback_query: types.CallbackQuery, state: FSMContext):
-#     if callback_query.data == 'wish_specialist':
-#         await callback_query.message.answer("Регистрация прошла успешно")
-#         user = get_user(callback_query.message.from_user.id)
-#         add_specialist(user)
-#     else:
-#         await state.finish()
-#         await callback_query.message.answer("Ваша анкета была отправлена на рассмотрение модератором")
-
-
 @dp.callback_query_handler(state=Registration.wished_role)
 async def send(callback_query: types.CallbackQuery, state: FSMContext):
+    """
+    Регистрация:
+    Отправка анкеты и данных
+    """
     user = db_worker.get_user(callback_query.from_user.id)
     if callback_query.data == 'wish_specialist':
         db_worker.add_specialist(user)
@@ -399,7 +392,7 @@ async def send(callback_query: types.CallbackQuery, state: FSMContext):
             user.status = "wish_repre"
         await callback_query.message.answer("Ваша анкета была отправлена на рассмотрение модератором")
     async with state.proxy() as data:
-        user.fullname = data['fullname']
+        user.real_fullname = data['fullname']
         user.phone = data['phone']
     db_worker.Session.commit()
     await callback_query.answer()
