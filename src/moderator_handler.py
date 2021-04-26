@@ -10,6 +10,14 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from utils import res_dict
 import db_worker
 
+
+async def send_profile(db_user, message: types.Message, state: FSMContext):
+    to_send = res_dict['profile_moderator'].format(db_user.real_fullname, db_user.phone)
+    keyboard = InlineKeyboardMarkup()
+    keyboard.insert(InlineKeyboardButton('Редактировать', callback_data='edit_profile'))
+    await message.answer(to_send, parse_mode='html', reply_markup=keyboard)
+
+
 async def generate_inline_keyboard_for_tasks(state: FSMContext, page_n:int, type_:str):
     async with state.proxy() as state_data:
         tasks_list = state_data[f'tasks_{type_}']
@@ -28,6 +36,7 @@ async def generate_inline_keyboard_for_tasks(state: FSMContext, page_n:int, type
         if (page_n + 1) * 9 < len(tasks_list):
             reply_markup.insert(types.InlineKeyboardButton(">>", callback_data=f'cp_tasks {page_n + 1} {type_}'))
         return reply_markup
+
 
 async def send_unchecked_taskes(db_user, unchecked_taskes, message: types.Message, state: FSMContext):
     async with state.proxy() as state_data:

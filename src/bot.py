@@ -152,8 +152,7 @@ async def send(message: types.Message, state: FSMContext):
             unchecked_taskes = db_worker.get_unchecked_taskes()
             await moderator_handler.send_unchecked_taskes(db_user, unchecked_taskes, message, state)
         elif command == "Профиль 👤":
-            pass
-            # await specialist_handler.send_profile_specialist(db_user, message, state)
+            await moderator_handler.send_profile(db_user, message, state)
     elif db_user.status == "specialist":
         if command == "Помощь 🙋":
             await message.answer(res_dict["help_specialist"], parse_mode="html")
