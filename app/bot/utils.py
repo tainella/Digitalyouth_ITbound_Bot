@@ -13,9 +13,12 @@ import db_worker
 # Из res создаём словарь строк для UI
 def res_(filename: str):
     return open(filename, 'r').read()
+
+
 res_dict = {}
 for file in Path("res").iterdir():
     res_dict[file.stem] = res_(file)
+
 
 def generate_task_description(task) -> str:
     status_str = ''
@@ -34,10 +37,10 @@ def generate_task_description(task) -> str:
     specialist_str = task.specialist.user.real_fullname if task.specialist is not None else "Не назначен"
     spheres = [sphere.spheres.name for sphere in task.spheres]
     to_return = res_dict['task_info'].format(task.name,
-        task.description,
-        ', '.join(spheres),
-        status_str,
-        task.representative.user.real_fullname,
-        specialist_str,
-        task.time_of_creation)
+                                             task.description,
+                                             ', '.join(spheres),
+                                             status_str,
+                                             task.representative.user.real_fullname,
+                                             specialist_str,
+                                             task.time_of_creation)
     return to_return
