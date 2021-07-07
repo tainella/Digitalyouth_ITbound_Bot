@@ -1,10 +1,8 @@
 .idea
 .env
 poetry.lock
-src/secret_data/*
-src/data/*
-!src/secret_data/README.md
-!src/data/README.md
+app/db/data/*
+!app/db/README.md
 .DS_Store
 # Byte-compiled / optimized / DLL files
 __pycache__/

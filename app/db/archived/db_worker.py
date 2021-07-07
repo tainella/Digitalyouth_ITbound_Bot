@@ -27,25 +27,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)-12s %(leveln
 #
 
 
-class User(BaseModelMixin):
-	__tablename__ = 'user'
-
-	telegram_id = Column(String, index=True, unique=True)
-	username = Column(String, nullable=True, index=True, unique=True)
-	telegram_fullname = Column(String)
-	real_fullname = Column(String, nullable=True)
-	# TODO получать номер телефона из контакта
-	phone = Column(String, nullable=True)
-	status = Column(String, nullable=True) #wish_moder, wish_rerpre, moderator, representative, specialist, blocked
-	# moderator = relationship('Moderator', back_populates="user", uselist=False, cascade='all, delete')
-	# specialist = relationship('Specialist', back_populates="user", uselist=False, cascade='all, delete')
-	# TODO перепроверить, что all, delete удаляет только детей
-	# representative = relationship('Representative', back_populates="user", uselist=False, cascade='all, delete')
-
-	def __init__(self, telegram_id, telegram_fullname, username=None):
-		self.telegram_id = telegram_id
-		self.username = username
-		self.telegram_fullname = telegram_fullname
 
 
 # Конец блока создания БД, начало инкапсуляции
