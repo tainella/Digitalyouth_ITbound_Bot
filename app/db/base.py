@@ -2,8 +2,8 @@ from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
-
 from sqlalchemy.ext.declarative import declarative_base
+from loguru import logger
 
 from ..core.settings import Settings
 
@@ -22,8 +22,9 @@ def session_scope():
     try:
         yield session
         session.commit()
-    except:
+    except Exception as e:
         session.rollback()
-        raise
+        logger.error(e)
+        raise e
     finally:
         session.close()

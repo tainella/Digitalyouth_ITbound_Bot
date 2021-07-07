@@ -19,11 +19,8 @@ class BaseModelMixin(Base):
     # TODO написать мета init
 
     @classmethod
-    def get(cls, session, id_: Union[int, Tuple[int, ...]]):
-        if isinstance(id_, int):
-            return session.query(cls).get(id_)
-        else:
-            return [session.query(cls).get(i) for i in id_]
+    def get(cls, session, id_: int):
+        return session.query(cls).get(id_)
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.id_ == other.id_

@@ -35,6 +35,15 @@ class User(BaseModelMixin):
         self.status = status
         self._log()
 
+    @classmethod
+    def get(cls, session, id_: int = None, telegram_id: int = None):
+        if id_ is None and telegram_id is None:
+            raise Exception("No id specified")
+        if id_ is not None:
+            return session.query(cls).get(id_)
+        if telegram_id is not None:
+            return session.query(cls).filter_by(telegram_id=telegram_id).first()
+
 
 class Sphere(BaseModelMixin):
     __tablename__ = 'sphere'
@@ -48,7 +57,6 @@ class Sphere(BaseModelMixin):
         self.name = name
         self.is_available = is_available
         self._log()
-
 
 
 class Specialist(BaseModelMixin):
@@ -94,7 +102,6 @@ class Moderator(BaseModelMixin):
         self.user = user
         self.is_admin = is_admin
         self._log()
-
 
 
 class Task(BaseModelMixin):

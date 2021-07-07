@@ -1,5 +1,4 @@
 import logging
-import configparser
 import os
 from pathlib import Path
 
@@ -11,16 +10,18 @@ from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
+from loguru import logger
 
+from ..db.models import User, Sphere, Specialist, Representative, Moderator, Task, SphereToSpecialist, SphereToTask
+from ..db.base import session_scope
+from ..core.settings import Settings
 import utils
 import db_worker
-from ..core.settings import Settings
 import specialist_handler, representative_handler, moderator_handler, registration
 from utils import res_dict
 
 BASE = Path(os.path.realpath(__file__))
 os.chdir(BASE.parent)
-
 
 bot = Bot(token=Settings().telegram_api)
 storage = MemoryStorage()  # TODO перейти на redis storage
@@ -60,10 +61,12 @@ async def send(message: types.Message):
     Все:
     Сообщение приветствия + генерация reply клавы
     """
-    db_user = db_worker.get_user(message.from_user.id)
-    if not db_user:
-        db_user = db_worker.add_user(message.from_user.id, message.from_user.full_name, message.from_user.username)
-    # logging.info(db_user)
+    with session_scope() as session:
+        db_user = User.get(session, telegram_id=message.from_user.id)
+        if not db_user:
+            db_user = User(message.from_user.id, message.from_user.username, message.from_user.full_name)
+            session.add(db_user)
+
     reply_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
     # TODO добавить эмодзи
     if db_user.status == "moderator":
@@ -86,7 +89,6 @@ async def send(message: types.Message):
         reply_keyboard.add(KeyboardButton('Зарегистрироваться 📝'))
         reply_keyboard.insert(KeyboardButton('Помощь 🙋'))
     await message.answer(res_dict["start"], parse_mode="html", reply_markup=reply_keyboard)
-    # print(message.from_user.get_mention(as_html=True))
 
 
 # TODO нормальное info
@@ -138,9 +140,12 @@ async def send(message: types.Message, state: FSMContext):
     Все:
     Обработка сообщений из reply клавиатуры
     """
-    db_user = db_worker.get_user(message.from_user.id)
-    if not db_user:
-        db_user = db_worker.add_user(message.from_user.id, message.from_user.full_name, message.from_user.username)
+    with session_scope() as session:
+        db_user = User.get(telegram_id=message.from_user.id)
+        if not db_user:
+            db_user = User(message.from_user.id, message.from_user.username, message.from_user.full_name)
+            session.add(db_user)
+
     command = message.text
     if command not in ["Помощь 🙋", "Начать модерацию 📝", "Список доступных задач 📝", "Текущие задачи 📋",
                        "История задач 📜", "Профиль 👤", "Добавить задачу 📝", "Зарегистрироваться 📝"]:
@@ -177,7 +182,7 @@ async def send(message: types.Message, state: FSMContext):
             await representative_handler.tasks_current(db_user, message, state)
         elif command == "Профиль 👤":
             await representative_handler.send_profile(db_user, message, state)
-    elif db_user.status == None:
+    elif db_user.status is None:
         if command == "Помощь 🙋":
             await message.answer(res_dict["help_nobody"], parse_mode="html")
         elif command == "Зарегистрироваться 📝":
@@ -300,11 +305,13 @@ async def send(update, state: FSMContext):
         message = update
         if len(message.text) > 2000:
             await message.answer(
-                "Ошибка, описание должно быть не более 2000 символов.\n(Введено {len(message.text)} символов)\n\nВведите <b>другое описание задачи</b>\n(не более 3000 символов)",
+                "Ошибка, описание должно быть не более 2000 символов.\n(Введено {len(message.text)} "
+                "символов)\n\nВведите <b>другое описание задачи</b>\n(не более 3000 символов)",
                 parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
         elif message.text in ["Помощь", "Добавить задачу", "История задач", "Текущие задачи"]:
             await message.answer(
-                'Ошибка, неправильное описание.\n\nВведите <b>другое описание задачи</b>\n(не более 2000 символов)\nДля отмены создания задания, нажмите <code>"Отмена"</code>',
+                'Ошибка, неправильное описание.\n\nВведите <b>другое описание задачи</b>\n(не более 2000 '
+                'символов)\nДля отмены создания задания, нажмите <code>"Отмена"</code>',
                 parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
         else:
             async with state.proxy() as data:
@@ -320,7 +327,7 @@ async def send(update, state: FSMContext):
 # Конец блока Представителя
 
 # Модератор
-
+# TODO а где модератор?!
 # Конец Модератора
 
 # Колбеки для регистрации
@@ -388,7 +395,8 @@ async def send(update, state: FSMContext):
         # добавить проверку телефона
         if message.text in ["Помощь", "Регистрация"]:
             await message.answer(
-                'Ошибка, неправильный телефонный номер.\n\nВведите <b>другой телефонный номер</b>\nДля отмены регистрации, нажмите <code>"Отмена"</code>',
+                'Ошибка, неправильный телефонный номер.\n\nВведите <b>другой телефонный номер</b>\nДля отмены '
+                'регистрации, нажмите <code>"Отмена"</code>',
                 parse_mode="html", reply_markup=representative_handler.generate_reply_keyboard_for_tasks())
         else:
             async with state.proxy() as data:
@@ -450,18 +458,18 @@ async def some_callback_handler(callback_query: types.CallbackQuery, state: FSMC
             async with state.proxy() as state_data:
                 if f'tasks_{data[2]}' in state_data:
                     to_answer = ''
-                    if data[
-                        2] == 'history' and callback_query.message.text != "История задач, которые Вы добавляли. \nЧтобы получить больше информации, нажмите на задачу.":
-                        await callback_query.message.edit_text(
-                            'История задач, которые Вы добавляли. \nЧтобы получить больше информации, нажмите на задачу.')
-                    if data[
-                        2] == 'current' and callback_query.message.text != "Текущие задачи, которые Вы добавляли. \nЧтобы получить больше информации и редактировать, нажмите на задачу.":
-                        await callback_query.message.edit_text(
-                            'Текущие задачи, которые Вы добавляли. \nЧтобы получить больше информации и редактировать, нажмите на задачу.')
-                    await callback_query.message.edit_reply_markup(
-                        reply_markup=await representative_handler.generate_inline_keyboard_for_tasks(state,
-                                                                                                     int(data[1]),
-                                                                                                     data[2]))
+                    if data[2] == 'history' and callback_query.message.text != "История задач, которые Вы добавляли. " \
+                                                                               "\nЧтобы получить больше информации, " \
+                                                                               "нажмите на задачу.":
+                        await callback_query.message.edit_text('История задач, которые Вы добавляли. '
+                                                               '\nЧтобы получить больше информации, нажмите на задачу.')
+                    if data[2] == 'current' and callback_query.message.text != "Текущие задачи, которые Вы добавляли." \
+                                                                               " \nЧтобы получить больше информации и" \
+                                                                               " редактировать, нажмите на задачу.":
+                        await callback_query.message.edit_text('Текущие задачи, которые Вы добавляли. \nЧтобы получить'
+                                                               ' больше информации и редактировать, нажмите на задачу.')
+                    await callback_query.message.edit_reply_markup(reply_markup=await
+                            representative_handler.generate_inline_keyboard_for_tasks(state, int(data[1]), data[2]))
                 else:
                     to_answer = 'Кнопка устарела, начните заного'
         elif command == "task_info":
