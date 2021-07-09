@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 
 from sqlalchemy.orm.session import Session
 
@@ -26,7 +26,7 @@ def get_opened_tasks(session: Session, interesting_spheres: Tuple[Sphere]):
     return tasks
 
 
-def get_tasks_for_user(user: User, task_status: Optional[str, Tuple[str]]):
+def get_tasks_for_user(user: User, task_status: Union[str, Tuple[str]]):
     if user.status == 'specialist':
         tasks = user.specialist.tasks
     elif user.status == 'representative':
