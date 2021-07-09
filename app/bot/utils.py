@@ -56,7 +56,7 @@ async def get_or_create_user(session: Session, message: types.Message) -> User:
     """
     user = User.get(session, telegram_id=message.from_user.id)
     if not user:
-        db_user = User(message.from_user.id, message.from_user.username, message.from_user.full_name)
-        session.add(db_user)
+        user = User(message.from_user.id, message.from_user.username, message.from_user.full_name)
+        session.add(user)
 
     return user
