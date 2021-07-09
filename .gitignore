@@ -1,7 +1,7 @@
 .idea
 .env
 poetry.lock
-app/db/data/*
+app/db_data/*
 !app/db/README.md
 .DS_Store
 # Byte-compiled / optimized / DLL files
