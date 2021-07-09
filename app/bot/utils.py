@@ -6,8 +6,10 @@ from aiogram.types import ReplyKeyboardRemove, \
     ReplyKeyboardMarkup, KeyboardButton, \
     InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.dispatcher import FSMContext
+from aiogram import types
+from sqlalchemy.orm.session import Session
 
-import db_worker
+from ..db.models import User
 
 
 # Из res создаём словарь строк для UI
@@ -16,8 +18,8 @@ def res_(filename: str):
 
 
 res_dict = {}
-for file in Path("res").iterdir():
-    res_dict[file.stem] = res_(file)
+for file in Path("app/res").iterdir():
+    res_dict[file.stem] = res_(str(file))
 
 
 def generate_task_description(task) -> str:
@@ -44,3 +46,17 @@ def generate_task_description(task) -> str:
                                              specialist_str,
                                              task.time_of_creation)
     return to_return
+
+
+async def get_or_create_user(session: Session, message: types.Message) -> User:
+    """
+    :param session: Сессия sqlalchemy
+    :param message: Сообщение от юзера
+    :rtype: Юзер из Базы данных подключенные к сессии из аргументов
+    """
+    user = User.get(session, telegram_id=message.from_user.id)
+    if not user:
+        db_user = User(message.from_user.id, message.from_user.username, message.from_user.full_name)
+        session.add(db_user)
+
+    return user

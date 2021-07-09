@@ -228,34 +228,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)-12s %(leveln
 # 	return task
 #
 #
-# def get_spesialist_spheres(user):
-# 	# user = Session.query(User).filter_by(telegram_id=telegram_id).first()
-# 	if user.specialist is None:
-# 		raise Exception("Ошибка, юзер {telegram_id} не является специалистом")
-# 	sp_sh = user.specialist.spheres
-# 	y = []
-# 	for i in sp_sh:
-# 		y.append(i.spheres.name)
-# 	return y
 #
 #
-# def get_all_interests():
-# 	list_ = Session.query(Sphere).filter_by(status=True).all()
-# 	list_ = [sphere.name for sphere in list_]
-# 	return list_
-#
-#
-# def get_opened_tasks(spheres):
-#     if spheres == []:
-#         spheres = get_all_interests()
-#     opened_tasks = Session.query(Task).filter_by(status = 'awaiting_specialist').all()
-#     tasks = []
-#     for task in opened_tasks:
-#         common = [sphere for sphere in spheres if sphere in task.spheres]
-#         # Если хотя бы одна сфера общяя
-#         if common is not None:
-#             tasks.append(task)
-#     return tasks
 #
 #
 # def get_unchecked_taskes():
@@ -274,23 +248,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)-12s %(leveln
 # 	return list_
 #
 #
-# def get_tasks_for_user(user, task_status):
-#     if user.status == 'specialist':
-#         tasks = user.specialist.tasks
-#     elif user.status == 'representative':
-#         tasks = user.representative.tasks
-#     else:
-#         raise Exception("Ошибка, юзер {telegram_id} не является представителем или специалистом")
-#     curr = []
-#     if isinstance(task_status, str):
-#         for task in tasks:
-#             if task.status == task_status:
-#                 curr.append(task)
-#     else:
-#         for task in tasks:
-#             if task.status in task_status:
-#                 curr.append(task)
-#     return curr
 #
 # def get_users_for_notification(task): #после прохождения задачей модерации
 # 	users_for_notification = []

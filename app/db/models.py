@@ -9,7 +9,7 @@ from .base_model import BaseModelMixin
 class User(BaseModelMixin):
     __tablename__ = 'user'
 
-    telegram_id = Column(String, nullable=False, index=True, unique=True)
+    telegram_id = Column(Integer, nullable=False, index=True, unique=True)
     # TODO сделать индексирумым как тот чел из плюма говорил
     username = Column(String)
     telegram_fullname = Column(String)
@@ -73,6 +73,7 @@ class Specialist(BaseModelMixin):
         self.user = user
         self.subscribed = True
         self._log()
+        self.user.status = "specialist"
 
 
 class Representative(BaseModelMixin):
@@ -88,6 +89,7 @@ class Representative(BaseModelMixin):
         self.user = user
         self.official_name = official_name
         self._log()
+        self.user.status = "representative"
 
 
 class Moderator(BaseModelMixin):
@@ -102,6 +104,7 @@ class Moderator(BaseModelMixin):
         self.user = user
         self.is_admin = is_admin
         self._log()
+        self.user.status = "moderator"
 
 
 class Task(BaseModelMixin):
