@@ -18,7 +18,7 @@ class User(BaseModelMixin):
     #  Может ещё регулярки сделать?
     phone_n = Column(String)
     # TODO добавить enum
-    status = Column(String)  # wish_moder, wish_rerpre, moderator, representative, specialist, blocked
+    status = Column(String)  # wish_moderator, wish_representative, moderator, representative, specialist, blocked
 
     moderator = relationship('Moderator', back_populates="user", uselist=False, cascade='all, delete')
     specialist = relationship('Specialist', back_populates="user", uselist=False, cascade='all, delete')
@@ -63,15 +63,15 @@ class Specialist(BaseModelMixin):
     __tablename__ = 'specialist'
 
     user_id = Column(String, ForeignKey('user.id_'), nullable=False)
-    subscribed = Column(Boolean, nullable=False)
+    is_subscribed = Column(Boolean, nullable=False)
 
     user = relationship("User", back_populates="specialist", uselist=False)
     tasks = relationship('Task', back_populates="specialist")
     spheres = relationship("SphereToSpecialist", back_populates="specialist")
 
-    def __init__(self, user: User, subscribed: bool = True):
+    def __init__(self, user: User, is_subscribed: bool = True):
         self.user = user
-        self.subscribed = True
+        self.is_subscribed = is_subscribed
         self._log()
         self.user.status = "specialist"
 
@@ -79,15 +79,15 @@ class Specialist(BaseModelMixin):
 class Representative(BaseModelMixin):
     __tablename__ = 'representative'
 
-    official_name = Column(String)
+    company_title = Column(String)
     user_id = Column(String, ForeignKey('user.id_'), nullable=False)
 
     user = relationship("User", back_populates="representative", uselist=False)
     tasks = relationship('Task', back_populates="representative")
 
-    def __init__(self, user: User, official_name: str = None):
+    def __init__(self, user: User, company_title: str = None):
         self.user = user
-        self.official_name = official_name
+        self.company_title = company_title
         self._log()
         self.user.status = "representative"
 

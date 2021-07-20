@@ -7,7 +7,8 @@ def placeholders(session: orm.session.Session):
     # Users
     users = [User(418878871, "teadove", "Петер", "Ибрагимов Петер Ильгизович", "+79778725196"),
              User(346235776, "tainella", "Amelia Zagadka", "Полей-Добронравова Амелия Вадимовна", "+79262895840"),
-             User(1409549287, "teameekey", "Петер 2.0", "Иванов Иван Иванович")]
+             User(1409549287, "teameekey", "Петер 2.0", "Иванов Иван Иванович"),
+             User(1624330498, 'elfen_clan', 'Каэде', "Антон Семёнов")]
     session.add_all(users)
 
     # Spheres
@@ -21,23 +22,28 @@ def placeholders(session: orm.session.Session):
 
     # Spheres to specialist
     spheres_to_specialist = [SphereToSpecialist(spheres[0], specialist), SphereToSpecialist(spheres[2], specialist),
-                             SphereToSpecialist(spheres[4], specialist), SphereToSpecialist(spheres[3], specialist)]
+                             SphereToSpecialist(spheres[4], specialist), SphereToSpecialist(spheres[3], specialist),
+                             SphereToSpecialist(spheres[-1], specialist)]
 
     session.add_all(spheres_to_specialist)
 
     # Representative
-    representative = Representative(users[1], "ООО название компании")
-    session.add(representative)
+    representatives = [Representative(users[1], "ООО название компании"),
+                       Representative(users[3], "ООО моя оборона")]
+
+    session.add_all(representatives)
 
     # Moderator
     moderator = Moderator(users[2], is_admin=True)
     session.add(moderator)
 
     # Task
-    tasks = [Task("Разработать телеграм бота", representative, "Разработать ТГ бота для ведения учёта посещений "
-                                                               "собраний, полное ТЗ при контакте"),
-             Task("Разработать дизайн для сайта", representative, "Разработать дизайн для сайта НКО для сборов "
-                                                                  "пожертвований для бездомных", specialist=specialist)]
+    tasks = [Task("Разработать телеграм бота", representatives[0], "Разработать ТГ бота для ведения учёта посещений "
+                                                                   "собраний, полное ТЗ при контакте"),
+             Task("Разработать дизайн для сайта", representatives[0],
+                  "Разработать дизайн для сайта НКО для сборов пожертвований для бездомных", specialist=specialist,
+                  status='in_work'),
+             Task("Разработать сайт для НКО", representatives[0], status="awaiting_specialist")]
     session.add_all(tasks)
 
     # SphereToTask

@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import sessionmaker, scoped_session, Session
 from sqlalchemy.ext.declarative import declarative_base
 from loguru import logger
 
@@ -12,12 +12,12 @@ from ..core.settings import Settings
 
 Base = declarative_base(name=Settings().sqlite_dsn.split("/")[-1])
 engine = create_engine(Settings().sqlite_dsn, echo=False)
-Session = sessionmaker(bind=engine)
+global_session = sessionmaker(bind=engine)
 scoped_Session = scoped_session(sessionmaker(bind=engine, expire_on_commit=False, autoflush=False))
 
 
 @contextmanager
-def session_scope():
+def session_scope() -> Session:
     session = scoped_Session()
     try:
         yield session

@@ -4,9 +4,8 @@
 from aiogram import Dispatcher, types
 from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher import FSMContext
-from loguru import logger
 
-from .utils import res_dict
+from ..utils.general_utils import res_dict
 
 
 # TODO нормальное info

@@ -11,8 +11,7 @@ def get_all_interests(session: Session):
     return list_to_return
 
 
-# TODO тайпинг доделать
-def get_opened_tasks(session: Session, interesting_spheres: Tuple[Sphere]):
+def get_opened_tasks(session: Session, interesting_spheres: Tuple[Sphere, ...]):
     if not interesting_spheres:
         interesting_spheres = get_all_interests(session)
     opened_tasks = session.query(Task).filter_by(status='awaiting_specialist').all()
@@ -26,7 +25,7 @@ def get_opened_tasks(session: Session, interesting_spheres: Tuple[Sphere]):
     return tasks
 
 
-def get_tasks_for_user(user: User, task_status: Union[str, Tuple[str]]):
+def get_tasks_for_user(user: User, task_status: Union[str, Tuple[str, ...]]):
     if user.status == 'specialist':
         tasks = user.specialist.tasks
     elif user.status == 'representative':
@@ -48,5 +47,5 @@ def get_tasks_for_user(user: User, task_status: Union[str, Tuple[str]]):
 def get_specialist_spheres(user: User):
     if user.specialist is None:
         raise Exception(f"Ошибка, юзер {user.telegram_id} не является специалистом")
-    spheres = user.specialist.spheres
-    return [sphere.name for sphere in spheres]
+    associations = user.specialist.spheres
+    return [association.sphere.name for association in associations]
